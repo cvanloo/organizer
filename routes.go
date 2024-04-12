@@ -51,18 +51,18 @@ func events(w http.ResponseWriter, r *http.Request) error {
 	events := EventListing{
 		Events: []Event{
 			{
-				Title: "Event 1",
-				Description: "Description of Event One.",
+				Title:                "Event 1",
+				Description:          "Description of Event One.",
 				NumberOfParticipants: 3,
 			},
 			{
-				Title: "Event 2",
-				Description: "Description of Event Two.",
+				Title:                "Event 2",
+				Description:          "Description of Event Two.",
 				NumberOfParticipants: 5,
 			},
 			{
-				Title: "Event 3",
-				Description: "Description of Event Three.",
+				Title:                "Event 3",
+				Description:          "Description of Event Three.",
 				NumberOfParticipants: 0,
 			},
 		},
@@ -73,8 +73,8 @@ func events(w http.ResponseWriter, r *http.Request) error {
 func event(w http.ResponseWriter, r *http.Request) error {
 	event := EventDetails{
 		Event: Event{
-			Title: "Event 1",
-			Description: "Description for Event One.",
+			Title:                "Event 1",
+			Description:          "Description for Event One.",
 			NumberOfParticipants: 3,
 		},
 		Participants: []Participant{
@@ -82,13 +82,13 @@ func event(w http.ResponseWriter, r *http.Request) error {
 				FullName: "Max Muster",
 			},
 			{
-				FullName: "Heinz Müller",
+				FullName:      "Heinz Müller",
 				acceptMessage: "Komme gerne.",
 			},
 		},
 		Discussion: []Comment{
 			{
-				Author: "Max Muster",
+				Author:  "Max Muster",
 				Message: "Ich hätte da mal eine Frage...",
 			},
 		},

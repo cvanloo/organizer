@@ -1,9 +1,9 @@
 package organizer
 
 import (
-	"net/http"
 	"fmt"
 	"log/slog"
+	"net/http"
 )
 
 type (
@@ -15,7 +15,7 @@ type (
 
 	HttpError struct {
 		code int
-		msg string
+		msg  string
 	}
 )
 
@@ -50,7 +50,7 @@ func (e ErrNotFound) RespondError(w http.ResponseWriter, r *http.Request) bool {
 	return true
 }
 
-type ErrNotImplemented struct {}
+type ErrNotImplemented struct{}
 
 func NotImplemented() error {
 	return ErrNotImplemented{}

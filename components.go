@@ -1,9 +1,9 @@
 package organizer
 
 import (
+	"bytes"
 	"html/template"
 	"io"
-	"bytes"
 )
 
 var (
@@ -61,7 +61,7 @@ type EventListing struct {
 }
 
 type Event struct {
-	Title, Description string
+	Title, Description   string
 	NumberOfParticipants int
 }
 
@@ -118,7 +118,7 @@ const HtmlCreate = `
 type EventDetails struct {
 	Event
 	Participants []Participant
-	Discussion []Comment
+	Discussion   []Comment
 }
 
 type Participant struct {

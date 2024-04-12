@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"log/slog"
+	"os"
 	"os/signal"
 	//"syscall"
-	"net/http"
-	"errors"
 	"context"
+	"errors"
+	"net/http"
 	"time"
 
 	"github.com/cvanloo/organizer"
@@ -19,13 +19,13 @@ func main() {
 	mux := http.NewServeMux()
 	organizer.RegisterRoutes(mux)
 	srv := http.Server{
-		Addr: ":8080",
+		Addr:    ":8080",
 		Handler: mux,
 	}
 
 	go func() {
 		slog.Info("starting listener on :8080")
-		err := srv.ListenAndServe/*TLS*/()
+		err := srv.ListenAndServe /*TLS*/ ()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error(fmt.Sprintf("HTTP server error: %v", err))
 		}
