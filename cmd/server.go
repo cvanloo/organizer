@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -14,6 +15,17 @@ import (
 	"github.com/cvanloo/organizer"
 )
 
+// @todo: read form config
+var cfg = organizer.SqlConnection{
+	Driver: "mysql",
+	User: "organizer",
+	//Password: "todo",
+	SocketPath: "/run/mysqld/mysqld.sock",
+	Database: "organizer",
+	MaxConns: 50,
+	MaxLifetime: 3*time.Minute,
+}
+
 // sudo fuser 8080/tcp -k
 func main() {
 	mux := http.NewServeMux()
@@ -22,6 +34,16 @@ func main() {
 		Addr:    ":8080",
 		Handler: mux,
 	}
+
+	db, err := organizer.DB(cfg)
+	if err != nil {
+		log.Fatal(fmt.Errorf("DB initialization / DNS parser: %w", err))
+	}
+	err = db.Ping()
+	if err != nil {
+		log.Fatal(fmt.Errorf("connection test failed: %w", err))
+	}
+	slog.Info("successfully connected to database", "driver", cfg.Driver, "conn", cfg.String())
 
 	go func() {
 		slog.Info("starting listener on :8080")

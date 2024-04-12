@@ -3,12 +3,15 @@
 .DEFAULT: build
 
 build: .FORCE
-	go build github.com/cvanloo/organizer
+	go build ./...
 
-run: .FORCE
-	go run github.com/cvanloo/organizer/cmd/server
+server: .FORCE
+	go build cmd/server.go
+
+run: server
+	sudo -u organizer ./server
 
 debug: .FORCE
-	dlv debug github.com/cvanloo/organizer/cmd/server
+	dlv debug cmd/server.go
 
 .FORCE:
