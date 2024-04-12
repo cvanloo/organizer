@@ -15,6 +15,7 @@ func RegisterRoutes(mux *http.ServeMux) {
 	mux.Handle("/login", HandlerWithError(login))
 	mux.Handle("/events", HandlerWithError(events))
 	mux.Handle("/create", HandlerWithError(create))
+	mux.Handle("/event/", HandlerWithError(event))
 }
 
 type homeOrNotFound struct{}
@@ -67,6 +68,32 @@ func events(w http.ResponseWriter, r *http.Request) error {
 		},
 	}
 	return pages.Execute(w, "EventListing", events)
+}
+
+func event(w http.ResponseWriter, r *http.Request) error {
+	event := EventDetails{
+		Event: Event{
+			Title: "Event 1",
+			Description: "Description for Event One.",
+			NumberOfParticipants: 3,
+		},
+		Participants: []Participant{
+			{
+				FullName: "Max Muster",
+			},
+			{
+				FullName: "Heinz Müller",
+				acceptMessage: "Komme gerne.",
+			},
+		},
+		Discussion: []Comment{
+			{
+				Author: "Max Muster",
+				Message: "Ich hätte da mal eine Frage...",
+			},
+		},
+	}
+	return pages.Execute(w, "EventView", event)
 }
 
 func create(w http.ResponseWriter, r *http.Request) error {

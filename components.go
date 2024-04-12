@@ -18,6 +18,7 @@ func init() {
 	template.Must(pages.Parse(HtmlLanding))
 	template.Must(pages.Parse(HtmlEventListing))
 	template.Must(pages.Parse(HtmlCreate))
+	template.Must(pages.Parse(HtmlEventView))
 }
 
 type Template struct {
@@ -109,6 +110,74 @@ const HtmlCreate = `
 		<!-- Repeat automatically: (Weekly/Daily/...) -->
 		<!-- maybe: Add (invite) people -->
 	</form>
+</body>
+</html>
+{{ end }}
+`
+
+type EventDetails struct {
+	Event
+	Participants []Participant
+	Discussion []Comment
+}
+
+type Participant struct {
+	FullName, acceptMessage string
+}
+
+func (p Participant) AcceptMessage() string {
+	if p.acceptMessage == "" {
+		return "Nimmt am Event teil."
+	}
+	return p.acceptMessage
+}
+
+type Comment struct {
+	Author, Message string
+}
+
+const HtmlEventView = `
+{{ define "EventView" }}
+<!DOCTYPE html>
+<html lang="de">
+<head>
+	<meta charset="utf-8">
+	<title>Eventansicht &mdash; Organizer</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+	<div class="event-info">
+		<h2>{{ .Title }}</h2>
+		<p>{{ .Description }}</p>
+		<p>Anzahl Teilnehmer: {{ .NumberOfParticipants }}</p>
+	</div>
+	<div class="event-participants">
+{{ range .Participants }}
+		<div class="participant">
+			<p>{{ .FullName }}</p>
+			<p>{{ .AcceptMessage }}</p>
+		</div>
+{{ end }}
+	</div>
+	<div class="event-discussion">
+{{ range .Discussion }}
+	{{ block "Comment" . }}
+		<div class="comment-entry">
+			<p>{{ .Author }}</p>
+			<p>{{ .Message }}</p>
+		</div>
+	{{ end }}
+{{ end }}
+		<div class="comment-box">
+			<!-- @todo: only if logged in -->
+			<!-- include event id in form data / csrf token -->
+			<form action="/comment" method="post">
+				<label for="comment">Kommentar verfassen:</label>
+				<input type="text" name="comment" id="comment" required>
+				<input type="submit" value="Kommentieren">
+			</form>
+		</div>
+	</div>
 </body>
 </html>
 {{ end }}
