@@ -20,6 +20,7 @@ func init() {
 	template.Must(pages.Parse(HtmlEventListing))
 	template.Must(pages.Parse(HtmlCreate))
 	template.Must(pages.Parse(HtmlEventView))
+	template.Must(pages.Parse(HtmlLoginLinkSent))
 }
 
 //go:embed htmx/htmx.js
@@ -57,16 +58,27 @@ const HtmlLanding = `
 	<title>Willkommen &mdash; Organizer</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<link rel="stylesheet" href="/styles.css" title="Default Style">
+	<script src="/js/htmx.js"></script>
 </head>
 <body>
 	<h2>Login</h2>
-	<form action="/login" method="post">
+	<form hx-post="/login" hx-target="body" hx-swap="innerHTML" class="list">
 		<label for="email">Email:</label>
 		<input type="email" name="email" id="email" required>
 		<input type="submit" value="Anmelden">
 	</form>
 </body>
 </html>
+{{ end }}
+`
+
+const HtmlLoginLinkSent = `
+{{ define "LoginLinkSent" }}
+<main class="text-center">
+	<h2>Login-Link verschickt</h2>
+	<p>Überprüfe dein Postfach (auch Spam).</p>
+	<p>Du kannst dieses Fenster jetzt schliessen.</p>
+</main>
 {{ end }}
 `
 

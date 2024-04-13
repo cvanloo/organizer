@@ -53,7 +53,9 @@ func redirect(to string) HandlerWithError {
 }
 
 func login(w http.ResponseWriter, r *http.Request) error {
-	return NotImplemented()
+	// @todo: lookup user
+	// @todo: actually send a login link
+	return pages.Execute(w, "LoginLinkSent", nil)
 }
 
 func events(w http.ResponseWriter, r *http.Request) error {
