@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	//"syscall"
+	"syscall"
 	"context"
 	"errors"
 	"net/http"
@@ -28,22 +28,18 @@ var cfg = organizer.SqlConnection{
 
 // sudo fuser 8080/tcp -k
 func main() {
-	mux := http.NewServeMux()
-	organizer.RegisterRoutes(mux)
-	srv := http.Server{
-		Addr:    ":8080",
-		Handler: mux,
-	}
-
-	db, err := organizer.DB(cfg)
-	if err != nil {
-		log.Fatal(fmt.Errorf("DB initialization / DNS parser: %w", err))
-	}
-	err = db.Ping()
-	if err != nil {
-		log.Fatal(fmt.Errorf("connection test failed: %w", err))
+	service := &organizer.Service{}
+	if err := service.InitDatabase(cfg); err != nil {
+		log.Fatal(err)
 	}
 	slog.Info("successfully connected to database", "driver", cfg.Driver, "conn", cfg.String())
+
+	service.RegisterRoutes()
+
+	srv := http.Server{
+		Addr:    ":8080",
+		Handler: service,
+	}
 
 	go func() {
 		slog.Info("starting listener on :8080")
@@ -55,8 +51,8 @@ func main() {
 	}()
 
 	c := make(chan os.Signal, 1)
-	//signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
-	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
+	//signal.Notify(c, os.Interrupt)
 	<-c
 	slog.Info("received interrupt, shutting down server")
 

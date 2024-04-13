@@ -33,21 +33,6 @@ func (s SqlConnection) String() string {
 	return connStr
 }
 
-func DB(cfg SqlConnection) (*sql.DB, error) {
-	db, err := sql.Open(cfg.Driver, cfg.String())
-	if err != nil {
-		return nil, err
-	}
-	db.SetConnMaxLifetime(cfg.MaxLifetime)
-	db.SetMaxOpenConns(cfg.MaxConns)
-	db.SetMaxIdleConns(cfg.MaxConns)
-
-	if err := migrate(db); err != nil {
-		return db, err
-	}
-	return db, nil
-}
-
 var migrations = []func(*sql.Tx) error {
 	m01_initial,
 }
@@ -88,24 +73,72 @@ func migrate(db *sql.DB) error {
 			return err
 		}
 	}
-	log.Printf("database (v%d) up to date", targetVersion)
+	log.Printf("database v%d up to date", targetVersion)
+	return nil
+}
+
+func runSteps(tx *sql.Tx, steps []string) error {
+	for i, sql := range steps {
+		_, err := tx.Exec(sql)
+		if err != nil {
+			return fmt.Errorf("sql step %d failed: %w", i, err)
+		}
+	}
 	return nil
 }
 
 func m01_initial(tx *sql.Tx) error {
 	steps := []string{
 		`create table if not exists users (
-			id int primary key auto_increment
+			id int primary key auto_increment,
+			name varchar(30) not null,
+			display varchar(30) not null,
+			email varchar(255) not null unique,
+			icon varchar(255) default null,
+			created_at datetime not null default current_timestamp,
+			changed_at datetime default null,
+			deleted_at datetime default null
 		);`,
 		`create table if not exists events (
-			id int primary key auto_increment
+			id int primary key auto_increment,
+			created_by int not null references users (id),
+			title varchar(255) not null,
+			description varchar(4096) not null,
+			repeats_every int not null default 0,
+			repeats_scale enum ('never', 'day', 'month', 'year') not null default 'never',
+			created_at datetime not null default current_timestamp,
+			changed_at datetime default null,
+			deleted_at datetime default null
+		);`,
+		`create table if not exists event_subscriptions (
+			id int primary key auto_increment,
+			user_id int not null references users (id),
+			event_id int not null references events (id),
+			unique index (user_id, event_id),
+			created_at datetime not null default current_timestamp,
+			changed_at datetime default null,
+			deleted_at datetime default null
 		);`,
 	}
-	for _, sql := range steps {
-		_, err := tx.Exec(sql)
-		if err != nil {
-			return err
-		}
+	return runSteps(tx, steps)
+}
+
+func m02_email_recovery(tx *sql.Tx) error {
+	// @todo: find that one blog post again
+	steps := []string{
+		`create table if not exists email_changes (
+			id int primary key auto_increment,
+			email varchar(255) not null unique,
+			confirm_token text(16),
+			changed_from_id int references email_changes (id) default null,
+			undo_token text(16) default null,
+		);`,
+		`alter table users change email email_id int not null references email_changes (id);`,
 	}
-	return nil
+	return runSteps(tx, steps)
+}
+
+func m03_trust(tx *sql.Tx) error {
+	steps := []string{}
+	return runSteps(tx, steps)
 }

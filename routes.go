@@ -2,20 +2,26 @@ package organizer
 
 import (
 	"net/http"
+	_ "embed"
 )
 
-func RegisterRoutes(mux *http.ServeMux) {
-	if mux == nil {
-		mux = http.DefaultServeMux
-	}
-	//mux.Handle("/", HandlerWithError(routeNotFound))
-	//mux.Handle("/", redirect("/index.html"))
+//go:embed htmx/htmx.js
+var htmxScript StringResponder
+
+func registerRoutes(mux *http.ServeMux) {
 	mux.Handle("/", homeOrNotFound{})
 	mux.Handle("/index.html", HandlerWithError(routeIndex))
 	mux.Handle("/login", HandlerWithError(login))
 	mux.Handle("/events", HandlerWithError(events))
 	mux.Handle("/create", HandlerWithError(create))
 	mux.Handle("/event/", HandlerWithError(event))
+	mux.Handle("/js/htmx.js", htmxScript)
+}
+
+type StringResponder string
+
+func (s StringResponder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte(s))
 }
 
 type homeOrNotFound struct{}
