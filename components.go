@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"html/template"
 	"io"
+	_ "embed"
 )
 
 var (
@@ -19,6 +20,18 @@ func init() {
 	template.Must(pages.Parse(HtmlEventListing))
 	template.Must(pages.Parse(HtmlCreate))
 	template.Must(pages.Parse(HtmlEventView))
+}
+
+//go:embed htmx/htmx.js
+var htmxScript StringResponder
+
+//go:embed styles.css
+var styles StringResponder
+
+func init() {
+	// @todo: uhhh...
+	fileToMime[htmxScript] = "application/javascript"
+	fileToMime[styles] = "text/css"
 }
 
 type Template struct {
@@ -43,6 +56,7 @@ const HtmlLanding = `
 	<meta charset="utf-8">
 	<title>Willkommen &mdash; Organizer</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" href="/styles.css" title="Default Style">
 </head>
 <body>
 	<h2>Login</h2>
@@ -73,6 +87,7 @@ const HtmlEventListing = `
 	<meta charset="utf-8">
 	<title>Events &mdash; Organizer</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" href="/styles.css" title="Default Style">
 </head>
 <body>
 	<h2>Events</h2>
@@ -96,6 +111,7 @@ const HtmlCreate = `
 	<meta charset="utf-8">
 	<title>Event erstellen &mdash; Organizer</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" href="/styles.css" title="Default Style">
 </head>
 <body>
 	<h2>Event erstellen</h2>
@@ -144,6 +160,7 @@ const HtmlEventView = `
 	<meta charset="utf-8">
 	<title>Eventansicht &mdash; Organizer</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" href="/styles.css" title="Default Style">
 </head>
 <body>
 	<div class="event-info">

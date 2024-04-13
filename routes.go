@@ -2,11 +2,7 @@ package organizer
 
 import (
 	"net/http"
-	_ "embed"
 )
-
-//go:embed htmx/htmx.js
-var htmxScript StringResponder
 
 func registerRoutes(mux *http.ServeMux) {
 	mux.Handle("/", homeOrNotFound{})
@@ -15,14 +11,21 @@ func registerRoutes(mux *http.ServeMux) {
 	mux.Handle("/events", HandlerWithError(events))
 	mux.Handle("/create", HandlerWithError(create))
 	mux.Handle("/event/", HandlerWithError(event))
+	mux.Handle("/styles.css", styles)
 	mux.Handle("/js/htmx.js", htmxScript)
 }
 
 type StringResponder string
 
 func (s StringResponder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if mime, ok := fileToMime[s]; ok {
+		hdrs := w.Header()
+		hdrs.Set("Content-Type", mime)
+	}
 	w.Write([]byte(s))
 }
+
+var fileToMime = map[StringResponder]string{}
 
 type homeOrNotFound struct{}
 
