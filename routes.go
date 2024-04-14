@@ -52,8 +52,16 @@ func (s *Service) login(w http.ResponseWriter, r *http.Request) error {
 		return Maybe404(err)
 	}
 
-	// @todo: actually send a login link
-	_ = user
+	token, err := s.auth.CreateLogin(user.ID)
+	if err != nil {
+		return err
+	}
+
+	err = s.mail.SendLoginLink(user.Email, token.Token)
+	if err != nil {
+		return err
+	}
+
 	return pages.Execute(w, "LoginLinkSent", nil)
 }
 

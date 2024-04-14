@@ -14,12 +14,13 @@ type (
 		Prepare(db *sql.DB) error
 		User(email string) (User, error)
 	}
+	UserID int
 	User struct {
-		ID int
+		ID UserID
 		Name string
-		Display string
+		Display sql.NullString
 		Email string
-		Icon string
+		Icon sql.NullString
 	}
 )
 

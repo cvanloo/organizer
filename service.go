@@ -10,8 +10,10 @@ import (
 )
 
 type Service struct {
-	repo Repository
 	mux *http.ServeMux
+	repo Repository
+	auth *Authenticator
+	mail *Mailer
 }
 
 func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -63,4 +65,12 @@ func (s *Service) RegisterRoutes() {
 	mux.Handle("/event/", HandlerWithError(event))
 	mux.Handle("/styles.css", styles)
 	mux.Handle("/js/htmx.js", htmxScript)
+}
+
+func (s *Service) UseAuthentication(auth *Authenticator) {
+	s.auth = auth
+}
+
+func (s *Service) UseMailer(mail *Mailer) {
+	s.mail = mail
 }

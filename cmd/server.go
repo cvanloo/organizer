@@ -11,9 +11,24 @@ import (
 	"errors"
 	"net/http"
 	"time"
+	"strconv"
 
 	"github.com/cvanloo/organizer"
+	"github.com/joho/godotenv"
 )
+
+func check[T any](t T, err error) T {
+	if err != nil {
+		log.Fatalf("assert failed: %v", err)
+	}
+	return t
+}
+
+func check1(err error) {
+	if err != nil {
+		log.Fatalf("assert failed: %v", err)
+	}
+}
 
 // @todo: read form config
 var cfg = organizer.SqlConnection{
@@ -29,11 +44,32 @@ var cfg = organizer.SqlConnection{
 
 // sudo fuser 8080/tcp -k
 func main() {
+	check1(godotenv.Load())
+
 	service := &organizer.Service{}
 	if err := service.InitDatabase(cfg); err != nil {
 		log.Fatal(err)
 	}
 	slog.Info("successfully connected to database", "driver", cfg.Driver, "conn", cfg.String())
+
+	service.UseAuthentication(organizer.NewAuthenticator())
+
+	checkEnv := func(key string) string {
+		env, ok := os.LookupEnv(key)
+		if !ok {
+			log.Fatalf("env var not set: %s", key)
+		}
+		return env
+	}
+
+	mailCfg := organizer.MailConfig{
+		Host: checkEnv("MAIL_HOST"),
+		Port: check(strconv.Atoi(checkEnv("MAIL_PORT"))),
+		Username: checkEnv("MAIL_USER"),
+		Password: checkEnv("MAIL_PASS"),
+		ThisSender: checkEnv("MAIL_USER"),
+	}
+	service.UseMailer(organizer.NewMailer(mailCfg))
 
 	service.RegisterRoutes()
 
