@@ -4,17 +4,6 @@ import (
 	"net/http"
 )
 
-func registerRoutes(mux *http.ServeMux) {
-	mux.Handle("/", homeOrNotFound{})
-	mux.Handle("/index.html", HandlerWithError(routeIndex))
-	mux.Handle("/login", HandlerWithError(login))
-	mux.Handle("/events", HandlerWithError(events))
-	mux.Handle("/create", HandlerWithError(create))
-	mux.Handle("/event/", HandlerWithError(event))
-	mux.Handle("/styles.css", styles)
-	mux.Handle("/js/htmx.js", htmxScript)
-}
-
 type StringResponder string
 
 func (s StringResponder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -52,9 +41,19 @@ func redirect(to string) HandlerWithError {
 	}
 }
 
-func login(w http.ResponseWriter, r *http.Request) error {
-	// @todo: lookup user
+func (s *Service) login(w http.ResponseWriter, r *http.Request) error {
+	email := r.FormValue("email")
+	if email == "" {
+		return BadRequest("missing field: email")
+	}
+
+	user, err := s.repo.User(email)
+	if err != nil {
+		return Maybe404(err)
+	}
+
 	// @todo: actually send a login link
+	_ = user
 	return pages.Execute(w, "LoginLinkSent", nil)
 }
 

@@ -24,6 +24,7 @@ var cfg = organizer.SqlConnection{
 	Database: "organizer",
 	MaxConns: 50,
 	MaxLifetime: 3*time.Minute,
+	UseSocket: true,
 }
 
 // sudo fuser 8080/tcp -k

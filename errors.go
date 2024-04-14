@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"database/sql"
+	"errors"
 )
 
 type (
@@ -58,4 +60,49 @@ func NotImplemented() error {
 
 func (e ErrNotImplemented) Error() string {
 	return "not implemented"
+}
+
+type ErrBadRequest struct {
+	msg string
+}
+
+func BadRequest(msg string) error {
+	return ErrBadRequest{msg}
+}
+
+func (e ErrBadRequest) Error() string {
+	return fmt.Sprintf("bad request: %s", e.msg)
+}
+
+type ErrMaybe404 struct {
+	err error
+}
+
+func Maybe404(err error) error {
+	return ErrMaybe404{err}
+}
+
+func (e ErrMaybe404) Error() string {
+	return e.err.Error()
+}
+
+func (e ErrMaybe404) Unwrap() error {
+	return e.err
+}
+
+//func (e ErrMaybe404) Is(target error) bool {
+//	return e.err == target
+//}
+
+func (e ErrMaybe404) Is404() bool {
+	return errors.Is(e.err, sql.ErrNoRows)
+	//return e.Is(sql.ErrNoRows)
+}
+
+func (e ErrMaybe404) RespondError(w http.ResponseWriter, r *http.Request) bool {
+	if e.Is404() {
+		http.Error(w, "resource not found", http.StatusNotFound)
+		return true
+	}
+	return false
 }

@@ -10,7 +10,7 @@ import (
 )
 
 type Service struct {
-	db *sql.DB
+	repo Repository
 	mux *http.ServeMux
 }
 
@@ -19,6 +19,14 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Service) InitDatabase(cfg SqlConnection) error {
+	var repo Repository
+	switch cfg.Driver {
+	case "mysql":
+		repo = &MariaDB{}
+	default:
+		return fmt.Errorf("no backend implemented for database: %s", cfg.Driver)
+	}
+
 	db, err := sql.Open(cfg.Driver, cfg.String())
 	if err != nil {
 		return fmt.Errorf("db dns: %w", err)
@@ -26,7 +34,9 @@ func (s *Service) InitDatabase(cfg SqlConnection) error {
 	db.SetConnMaxLifetime(cfg.MaxLifetime)
 	db.SetMaxOpenConns(cfg.MaxConns)
 	db.SetMaxIdleConns(cfg.MaxConns)
-	s.db = db
+
+	repo.Prepare(db)
+	s.repo = repo
 
 	{
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -43,6 +53,14 @@ func (s *Service) InitDatabase(cfg SqlConnection) error {
 }
 
 func (s *Service) RegisterRoutes() {
-	s.mux = http.NewServeMux()
-	registerRoutes(s.mux)
+	mux := http.NewServeMux()
+	s.mux = mux
+	mux.Handle("/", homeOrNotFound{})
+	mux.Handle("/index.html", HandlerWithError(routeIndex))
+	mux.Handle("/login", HandlerWithError(s.login))
+	mux.Handle("/events", HandlerWithError(events))
+	mux.Handle("/create", HandlerWithError(create))
+	mux.Handle("/event/", HandlerWithError(event))
+	mux.Handle("/styles.css", styles)
+	mux.Handle("/js/htmx.js", htmxScript)
 }

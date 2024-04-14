@@ -9,6 +9,20 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+type (
+	Repository interface {
+		Prepare(db *sql.DB) error
+		User(email string) (User, error)
+	}
+	User struct {
+		ID int
+		Name string
+		Display string
+		Email string
+		Icon string
+	}
+)
+
 type SqlConnection struct {
 	Driver string
 	User string
@@ -17,19 +31,28 @@ type SqlConnection struct {
 	Database string
 	MaxConns int
 	MaxLifetime time.Duration
+	UseSocket bool
 }
 
 func (s SqlConnection) String() string {
 	// [username[:password]@][protocol[(address)]]/dbname[?param1=value1&...&paramN=valueN]
 	// username:password@unix(socketPath)/dbname?charset=utf8
-	connStr := fmt.Sprintf(
-		//"%s:%s@unix(%s)/%s?charset=utf8",
-		"%s@unix(%s)/%s?charset=utf8",
-		s.User,
-		//s.Password,
-		s.SocketPath,
-		s.Database,
-	)
+	var connStr string
+	if s.UseSocket {
+		connStr = fmt.Sprintf(
+			"%s@unix(%s)/%s?charset=utf8",
+			s.User,
+			s.SocketPath,
+			s.Database,
+		)
+	} else {
+		connStr = fmt.Sprintf(
+			"%s:%s@/%s?charset=utf8",
+			s.User,
+			s.Password,
+			s.Database,
+		)
+	}
 	return connStr
 }
 
