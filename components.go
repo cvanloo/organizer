@@ -49,6 +49,7 @@ func Render(name string, data any) (template.HTML, error) {
 	return template.HTML(buf.String()), err
 }
 
+// @todo: add loading anim while login is being processed
 const HtmlLanding = `
 {{ define "Landing" }}
 <!DOCTYPE html>

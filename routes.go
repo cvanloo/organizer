@@ -57,7 +57,10 @@ func (s *Service) login(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	err = s.mail.SendLoginLink(user.Email, token.Token)
+	err = s.mail.SendLoginLink(user.Email, TokenLink{
+		Token: token.Token,
+		Where: s.url,
+	})
 	if err != nil {
 		return err
 	}

@@ -9,19 +9,89 @@ import (
 	"time"
 )
 
-type Service struct {
-	mux *http.ServeMux
-	repo Repository
-	auth *Authenticator
-	mail *Mailer
+type (
+	Service struct {
+		url Url
+		mux *http.ServeMux
+		dbConn SqlConnection
+		repo Repository
+		auth *Authenticator
+		mail *Mailer
+	}
+	Url string
+	ServiceOpt func(*Service)
+)
+
+func NewService(opts ...ServiceOpt) (*Service, error) {
+	// @todo: mandatory args
+	s := &Service{
+		url: "http://localhost:8080/",
+		mux: http.DefaultServeMux,
+		auth: NewAuthenticator(),
+	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	s.setupRoutes()
+
+	if err := s.initialDatabase(); err != nil {
+		return nil, err
+	}
+
+	return s, nil
+}
+
+func WithUrl(url Url) ServiceOpt {
+	return func(s *Service) {
+		s.url = url
+	}
+}
+
+func WithMux(mux *http.ServeMux) ServiceOpt {
+	return func(s *Service) {
+		s.mux = mux
+	}
+}
+
+func WithDatabase(conn SqlConnection) ServiceOpt {
+	return func(s *Service) {
+		s.dbConn = conn
+	}
+}
+
+func WithAuthentication(auth *Authenticator) ServiceOpt {
+	return func(s *Service) {
+		s.auth = auth
+	}
+}
+
+func WithMailer(mail *Mailer) ServiceOpt {
+	return func(s *Service) {
+		s.mail = mail
+	}
 }
 
 func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mux.ServeHTTP(w, r)
 }
 
-func (s *Service) InitDatabase(cfg SqlConnection) error {
+func (s *Service) setupRoutes() {
+	mux := s.mux
+	mux.Handle("/", homeOrNotFound{})
+	mux.Handle("/index.html", HandlerWithError(routeIndex))
+	mux.Handle("/login", HandlerWithError(s.login))
+	mux.Handle("/events", HandlerWithError(events))
+	mux.Handle("/create", HandlerWithError(create))
+	mux.Handle("/event/", HandlerWithError(event))
+	mux.Handle("/styles.css", styles)
+	mux.Handle("/js/htmx.js", htmxScript)
+}
+
+func (s *Service) initialDatabase() error {
 	var repo Repository
+	cfg := s.dbConn
 	switch cfg.Driver {
 	case "mysql":
 		repo = &MariaDB{}
@@ -52,25 +122,4 @@ func (s *Service) InitDatabase(cfg SqlConnection) error {
 		return fmt.Errorf("db migrations failed to run: %w", err)
 	}
 	return nil
-}
-
-func (s *Service) RegisterRoutes() {
-	mux := http.NewServeMux()
-	s.mux = mux
-	mux.Handle("/", homeOrNotFound{})
-	mux.Handle("/index.html", HandlerWithError(routeIndex))
-	mux.Handle("/login", HandlerWithError(s.login))
-	mux.Handle("/events", HandlerWithError(events))
-	mux.Handle("/create", HandlerWithError(create))
-	mux.Handle("/event/", HandlerWithError(event))
-	mux.Handle("/styles.css", styles)
-	mux.Handle("/js/htmx.js", htmxScript)
-}
-
-func (s *Service) UseAuthentication(auth *Authenticator) {
-	s.auth = auth
-}
-
-func (s *Service) UseMailer(mail *Mailer) {
-	s.mail = mail
 }

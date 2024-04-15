@@ -14,7 +14,9 @@ import (
 	"strconv"
 
 	"github.com/cvanloo/organizer"
-	"github.com/joho/godotenv"
+
+	// godotenv.Load(): loads .env from project root
+	_ "github.com/joho/godotenv/autoload"
 )
 
 func check[T any](t T, err error) T {
@@ -44,16 +46,6 @@ var cfg = organizer.SqlConnection{
 
 // sudo fuser 8080/tcp -k
 func main() {
-	check1(godotenv.Load())
-
-	service := &organizer.Service{}
-	if err := service.InitDatabase(cfg); err != nil {
-		log.Fatal(err)
-	}
-	slog.Info("successfully connected to database", "driver", cfg.Driver, "conn", cfg.String())
-
-	service.UseAuthentication(organizer.NewAuthenticator())
-
 	checkEnv := func(key string) string {
 		env, ok := os.LookupEnv(key)
 		if !ok {
@@ -69,9 +61,19 @@ func main() {
 		Password: checkEnv("MAIL_PASS"),
 		ThisSender: checkEnv("MAIL_USER"),
 	}
-	service.UseMailer(organizer.NewMailer(mailCfg))
 
-	service.RegisterRoutes()
+	mux := http.NewServeMux()
+
+	service, err := organizer.NewService(
+		organizer.WithUrl("http://localhost:8080/"),
+		organizer.WithMux(mux),
+		organizer.WithDatabase(cfg),
+		organizer.WithAuthentication(organizer.NewAuthenticator()),
+		organizer.WithMailer(organizer.NewMailer(mailCfg)),
+	)
+	if err != nil {
+		log.Fatalf("failed to initialize service: %v", err)
+	}
 
 	srv := http.Server{
 		Addr:    ":8080",

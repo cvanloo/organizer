@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"gopkg.in/gomail.v2"
 	"text/template"
+	"fmt"
 )
 
 var tmplLoginLink = template.Must(template.New("LoginLink").Parse(loginLinkBody))
@@ -21,6 +22,18 @@ type (
 	}
 )
 
+type (
+	TokenLink struct {
+		Token string
+		Where Url
+	}
+)
+
+func (tl TokenLink) String() string {
+	// @todo: url.Append()
+	return fmt.Sprintf("%sauth?token=%s", tl.Where, tl.Token)
+}
+
 func NewMailer(cfg MailConfig) *Mailer {
 	d := gomail.NewDialer(cfg.Host, cfg.Port, cfg.Username, cfg.Password)
 	return &Mailer{
@@ -29,7 +42,7 @@ func NewMailer(cfg MailConfig) *Mailer {
 	}
 }
 
-func (m *Mailer) SendLoginLink(email, token string) error {
+func (m *Mailer) SendLoginLink(email string, token TokenLink) error {
 	msg := gomail.NewMessage()
 	msg.SetHeader("From", m.ThisSender)
 	msg.SetHeader("To", email)
