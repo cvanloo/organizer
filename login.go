@@ -47,6 +47,8 @@ func WithLoginTokenLength(length int) AuthOpt {
 	}
 }
 
+// @todo: should we enforce that ValidateLogin comes from the same IP as CreateLogin?
+//        or with a cookie (so it must be the same device)?
 func (a *Authenticator) CreateLogin(u UserID) (LoginToken, error) {
 	tokenStr, err := randomToken(a.loginTokenLength)
 	if err != nil {
@@ -61,11 +63,25 @@ func (a *Authenticator) CreateLogin(u UserID) (LoginToken, error) {
 	return token, nil
 }
 
-func (a *Authenticator) ValidateLogin(u UserID) error {
+func (a *Authenticator) HasValidLoginRequest(u UserID) bool {
+	t, ok := a.loginTokens[u]
+	if !ok {
+		return false
+	}
+
+	now := time.Now()
+	if t.Created.Add(a.loginTokenExpiryLimit).Compare(now) < 0 {
+		return false
+	}
+
+	return true
+}
+
+func (a *Authenticator) ValidateLogin(u UserID, tokenStr string) error {
 	t, ok := a.loginTokens[u]
 	if !ok {
 		// @todo: app/business logic errors
-		return errors.New("no login token")
+		return errors.New("login token expired")
 	}
 
 	now := time.Now()
@@ -74,8 +90,18 @@ func (a *Authenticator) ValidateLogin(u UserID) error {
 		return errors.New("login token expired")
 	}
 
+	if tokenStr != t.Token {
+		return errors.New("login token expired")
+	}
+
 	delete(a.loginTokens, u)
 	return nil
+}
+
+func (a *Authenticator) UserFromSession(session string) (User, error) {
+	// @todo: implement
+	var zero User
+	return zero, errors.New("not implemented")
 }
 
 func randomToken(length int) (string, error) {

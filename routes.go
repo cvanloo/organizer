@@ -2,6 +2,7 @@ package organizer
 
 import (
 	"net/http"
+	"time"
 )
 
 type StringResponder string
@@ -65,7 +66,54 @@ func (s *Service) login(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	session := &http.Cookie{
+		Name: "session",
+		Value: "@todo",
+		Expires: time.Now().Add(time.Hour*24*30), // @todo: config
+		// etc. ...
+	}
+	http.SetCookie(w, session)
+
 	return pages.Execute(w, "LoginLinkSent", nil)
+}
+
+func (s *Service) authenticate(w http.ResponseWriter, r *http.Request) error {
+	token := r.FormValue("token")
+	if token == "" {
+		return BadRequest("missing parameter: token")
+	}
+
+	// @todo: implement session cookie
+	sessionCookie, err := r.Cookie("session")
+	if err != nil {
+		return Unauthorized()
+	}
+	session := sessionCookie.Value
+
+	user, err := s.auth.UserFromSession(session)
+	if err != nil {
+		return Unauthorized()
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		if !s.auth.HasValidLoginRequest(user.ID) {
+			return Unauthorized()
+		}
+		return pages.Execute(w, "ConfirmLogin", nil /* csrf token? */)
+	case http.MethodPost:
+		// @todo: invalidate token
+		if err := s.auth.ValidateLogin(user.ID, token); err != nil {
+			return Unauthorized()
+		}
+		// @todo: mark session as authenticated
+		w.WriteHeader(http.StatusOK)
+		return nil
+	default:
+		return MethodNotAllowed()
+	}
+
+	return Unauthorized()
 }
 
 func events(w http.ResponseWriter, r *http.Request) error {

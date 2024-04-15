@@ -106,3 +106,33 @@ func (e ErrMaybe404) RespondError(w http.ResponseWriter, r *http.Request) bool {
 	}
 	return false
 }
+
+type ErrMethodNotAllowed struct{}
+
+func MethodNotAllowed() error {
+	return ErrMethodNotAllowed{}
+}
+
+func (e ErrMethodNotAllowed) Error() string {
+	return fmt.Sprintf("method not allowed")
+}
+
+func (e ErrMethodNotAllowed) RespondError(w http.ResponseWriter, r *http.Request) bool {
+	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	return true
+}
+
+type ErrUnauthorized struct{}
+
+func Unauthorized() error {
+	return ErrUnauthorized{}
+}
+
+func (e ErrUnauthorized) Error() string {
+	return "unauthorized"
+}
+
+func (e ErrUnauthorized) RespondError(w http.ResponseWriter, r *http.Request) bool {
+	http.Error(w, "unauthorized", http.StatusUnauthorized)
+	return true
+}
