@@ -1,12 +1,12 @@
 package organizer
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
-	"time"
-	"log"
-	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
+	"log"
+	"time"
 )
 
 type (
@@ -15,24 +15,24 @@ type (
 		User(email string) (User, error)
 	}
 	UserID int
-	User struct {
-		ID UserID
-		Name string
+	User   struct {
+		ID      UserID
+		Name    string
 		Display sql.NullString
-		Email string
-		Icon sql.NullString
+		Email   string
+		Icon    sql.NullString
 	}
 )
 
 type SqlConnection struct {
-	Driver string
-	User string
-	Password string
-	SocketPath string
-	Database string
-	MaxConns int
+	Driver      string
+	User        string
+	Password    string
+	SocketPath  string
+	Database    string
+	MaxConns    int
 	MaxLifetime time.Duration
-	UseSocket bool
+	UseSocket   bool
 }
 
 func (s SqlConnection) String() string {
@@ -57,7 +57,7 @@ func (s SqlConnection) String() string {
 	return connStr
 }
 
-var migrations = []func(*sql.Tx) error {
+var migrations = []func(*sql.Tx) error{
 	m01_initial,
 }
 

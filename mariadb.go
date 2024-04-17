@@ -5,7 +5,7 @@ import (
 )
 
 type MariaDB struct {
-	db *sql.DB
+	db       *sql.DB
 	StmtUser *sql.Stmt
 }
 

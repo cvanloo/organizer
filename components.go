@@ -2,9 +2,9 @@ package organizer
 
 import (
 	"bytes"
+	_ "embed"
 	"html/template"
 	"io"
-	_ "embed"
 )
 
 var (
@@ -86,7 +86,7 @@ const HtmlLoginLinkSent = `
 
 type ConfirmLoginData struct {
 	Token LoginID
-	Csrf string
+	Csrf  string
 }
 
 const HtmlConfirmLogin = `

@@ -99,13 +99,13 @@ func (s *Service) login(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	session := &http.Cookie{
-		Name: "session",
-		Value: sessionToken.Value,
+		Name:    "session",
+		Value:   sessionToken.Value,
 		Expires: sessionToken.Expires(s.auth.sessionTokenExpiryLimit),
 		// Domain: defaults to host of current document URL, not including subdomains
 		HttpOnly: true, // forbids access via Document.cookie / will still be sent with JS-initiated requests
 		SameSite: http.SameSiteStrictMode,
-		Secure: true,
+		Secure:   true,
 	}
 	http.SetCookie(w, session)
 
@@ -133,7 +133,7 @@ func (s *Service) authenticate(w http.ResponseWriter, r *http.Request) error {
 		}
 		data := ConfirmLoginData{
 			Token: token,
-			Csrf: "", // @todo: not implemented / necessary?
+			Csrf:  "", // @todo: not implemented / necessary?
 		}
 		return pages.Execute(w, "ConfirmLogin", data)
 	case http.MethodPost:

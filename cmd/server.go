@@ -1,17 +1,17 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
-	"syscall"
-	"context"
-	"errors"
-	"net/http"
-	"time"
 	"strconv"
+	"syscall"
+	"time"
 
 	"github.com/cvanloo/organizer"
 
@@ -35,13 +35,13 @@ func check1(err error) {
 // @todo: read form config
 var cfg = organizer.SqlConnection{
 	Driver: "mysql",
-	User: "organizer",
+	User:   "organizer",
 	//Password: "todo",
-	SocketPath: "/run/mysqld/mysqld.sock",
-	Database: "organizer",
-	MaxConns: 50,
-	MaxLifetime: 3*time.Minute,
-	UseSocket: true,
+	SocketPath:  "/run/mysqld/mysqld.sock",
+	Database:    "organizer",
+	MaxConns:    50,
+	MaxLifetime: 3 * time.Minute,
+	UseSocket:   true,
 }
 
 // sudo fuser 8080/tcp -k
@@ -55,10 +55,10 @@ func main() {
 	}
 
 	mailCfg := organizer.MailConfig{
-		Host: checkEnv("MAIL_HOST"),
-		Port: check(strconv.Atoi(checkEnv("MAIL_PORT"))),
-		Username: checkEnv("MAIL_USER"),
-		Password: checkEnv("MAIL_PASS"),
+		Host:       checkEnv("MAIL_HOST"),
+		Port:       check(strconv.Atoi(checkEnv("MAIL_PORT"))),
+		Username:   checkEnv("MAIL_USER"),
+		Password:   checkEnv("MAIL_PASS"),
 		ThisSender: checkEnv("MAIL_USER"),
 	}
 

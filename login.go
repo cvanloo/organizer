@@ -1,25 +1,25 @@
 package organizer
 
 import (
-	"errors"
-	"time"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"net/http"
+	"time"
 )
 
 type (
 	Token struct {
-		Value string
+		Value   string
 		Created time.Time
 	}
 	LoginToken struct {
 		Token
 	}
-	LoginID string
+	LoginID      string
 	SessionToken struct {
 		Token
-		User UserID
+		User          UserID
 		Authenticated bool
 	}
 	SessionID string
@@ -27,7 +27,7 @@ type (
 
 func NewToken(value string) Token {
 	return Token{
-		Value: value,
+		Value:   value,
 		Created: time.Now(),
 	}
 }
@@ -43,10 +43,10 @@ func (t Token) Expires(limit time.Duration) time.Time {
 
 type (
 	Authenticator struct {
-		loginTokens map[UserID]LoginToken
-		sessionIDs map[SessionID]*SessionToken
-		tokenLength int
-		loginTokenExpiryLimit time.Duration
+		loginTokens             map[UserID]LoginToken
+		sessionIDs              map[SessionID]*SessionToken
+		tokenLength             int
+		loginTokenExpiryLimit   time.Duration
 		sessionTokenExpiryLimit time.Duration
 	}
 	AuthOpt func(*Authenticator)
@@ -54,11 +54,11 @@ type (
 
 func NewAuthenticator(opts ...AuthOpt) *Authenticator {
 	auth := &Authenticator{
-		loginTokens: map[UserID]LoginToken{},
-		sessionIDs: map[SessionID]*SessionToken{},
-		tokenLength: 50,
-		loginTokenExpiryLimit: 10*time.Minute,
-		sessionTokenExpiryLimit: time.Hour*24*7,
+		loginTokens:             map[UserID]LoginToken{},
+		sessionIDs:              map[SessionID]*SessionToken{},
+		tokenLength:             50,
+		loginTokenExpiryLimit:   10 * time.Minute,
+		sessionTokenExpiryLimit: time.Hour * 24 * 7,
 	}
 	for _, opt := range opts {
 		opt(auth)
@@ -138,8 +138,8 @@ func (a *Authenticator) CreateSession(u UserID) (*SessionToken, error) {
 		return nil, err
 	}
 	token := &SessionToken{
-		Token: NewToken(tokenStr),
-		User: u,
+		Token:         NewToken(tokenStr),
+		User:          u,
 		Authenticated: false,
 	}
 	a.sessionIDs[SessionID(tokenStr)] = token

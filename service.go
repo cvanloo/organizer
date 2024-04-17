@@ -1,32 +1,32 @@
 package organizer
 
 import (
-	"fmt"
+	"context"
 	"database/sql"
+	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"net/http"
-	"context"
 	"time"
 )
 
 type (
 	Service struct {
-		url Url
-		mux *http.ServeMux
+		url    Url
+		mux    *http.ServeMux
 		dbConn SqlConnection
-		repo Repository
-		auth *Authenticator
-		mail *Mailer
+		repo   Repository
+		auth   *Authenticator
+		mail   *Mailer
 	}
-	Url string
+	Url        string
 	ServiceOpt func(*Service)
 )
 
 func NewService(opts ...ServiceOpt) (*Service, error) {
 	// @todo: mandatory args
 	s := &Service{
-		url: "http://localhost:8080/",
-		mux: http.DefaultServeMux,
+		url:  "http://localhost:8080/",
+		mux:  http.DefaultServeMux,
 		auth: NewAuthenticator(),
 	}
 

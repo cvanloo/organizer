@@ -1,11 +1,11 @@
 package organizer
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
-	"database/sql"
-	"errors"
 )
 
 type (

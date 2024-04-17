@@ -2,23 +2,23 @@ package organizer
 
 import (
 	"bytes"
+	"fmt"
 	"gopkg.in/gomail.v2"
 	"text/template"
-	"fmt"
 )
 
 var tmplLoginLink = template.Must(template.New("LoginLink").Parse(loginLinkBody))
 
 type (
-	Mailer struct{
-		Dialer *gomail.Dialer
+	Mailer struct {
+		Dialer     *gomail.Dialer
 		ThisSender string
 	}
-	MailConfig struct{
-		Host string
-		Port int
+	MailConfig struct {
+		Host               string
+		Port               int
 		Username, Password string
-		ThisSender string
+		ThisSender         string
 	}
 )
 
@@ -37,7 +37,7 @@ func (tl TokenLink) String() string {
 func NewMailer(cfg MailConfig) *Mailer {
 	d := gomail.NewDialer(cfg.Host, cfg.Port, cfg.Username, cfg.Password)
 	return &Mailer{
-		Dialer: d,
+		Dialer:     d,
 		ThisSender: cfg.ThisSender,
 	}
 }
