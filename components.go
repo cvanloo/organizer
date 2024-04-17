@@ -17,6 +17,7 @@ func init() {
 	})
 
 	template.Must(pages.Parse(HtmlLanding))
+	template.Must(pages.Parse(HtmlConfirmLogin))
 	template.Must(pages.Parse(HtmlEventListing))
 	template.Must(pages.Parse(HtmlCreate))
 	template.Must(pages.Parse(HtmlEventView))
@@ -80,6 +81,33 @@ const HtmlLoginLinkSent = `
 	<p>Überprüfe dein Postfach (auch Spam).</p>
 	<p>Du kannst dieses Fenster jetzt schliessen.</p>
 </main>
+{{ end }}
+`
+
+type ConfirmLoginData struct {
+	Token LoginID
+	Csrf string
+}
+
+const HtmlConfirmLogin = `
+{{ define "ConfirmLogin" }}
+<!DOCTYPE html>
+<html lang="de">
+<head>
+	<meta charset="utf-8">
+	<title>Login bestätigen &mdash; Organizer</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" href="/styles.css" title="Default Style">
+</head>
+<body>
+	<h2>Login Bestätigen</h2>
+	<form action="/auth" method="post" class="list">
+		<input type="hidden" name="token" id="token" value="{{.Token}}">
+		<input type="hidden" name="csrf" id="csrf" value="{{.Csrf}}">
+		<input type="submit" value="Login Bestätigen">
+	</form>
+</body>
+</html>
 {{ end }}
 `
 
@@ -199,8 +227,7 @@ const HtmlEventView = `
 	{{ end }}
 {{ end }}
 		<div class="comment-box">
-			<!-- @todo: only if logged in -->
-			<!-- include event id in form data / csrf token -->
+			<!-- @todo: include event id in form data / csrf token -->
 			<form action="/comment" method="post">
 				<label for="comment">Kommentar verfassen:</label>
 				<input type="text" name="comment" id="comment" required>

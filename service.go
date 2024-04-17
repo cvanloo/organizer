@@ -80,12 +80,12 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *Service) setupRoutes() {
 	mux := s.mux
 	mux.Handle("/", homeOrNotFound{})
-	mux.Handle("/index.html", HandlerWithError(routeIndex))
+	mux.Handle("/home", HandlerWithError(s.routeIndex))
 	mux.Handle("/login", HandlerWithError(s.login))
-	mux.Handle("/auth", HandlerWithError(s.authenticate))
-	mux.Handle("/events", HandlerWithError(events))
-	mux.Handle("/create", HandlerWithError(create))
-	mux.Handle("/event/", HandlerWithError(event))
+	mux.Handle("/auth", s.withSession(HandlerWithError(s.authenticate), false))
+	mux.Handle("/events", s.withAuth(HandlerWithError(events)))
+	mux.Handle("/create", s.withAuth(HandlerWithError(create)))
+	mux.Handle("/event/", s.withAuth(HandlerWithError(event)))
 	mux.Handle("/styles.css", styles)
 	mux.Handle("/js/htmx.js", htmxScript)
 }

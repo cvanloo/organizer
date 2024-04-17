@@ -74,6 +74,11 @@ func (e ErrBadRequest) Error() string {
 	return fmt.Sprintf("bad request: %s", e.msg)
 }
 
+func (e ErrBadRequest) RespondError(w http.ResponseWriter, r *http.Request) bool {
+	http.Error(w, fmt.Sprintf("bad request: %s", e.msg), http.StatusBadRequest)
+	return true
+}
+
 type ErrMaybe404 struct {
 	err error
 }
