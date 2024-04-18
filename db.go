@@ -129,7 +129,7 @@ func m01_initial(tx *sql.Tx) error {
 			title varchar(255) not null,
 			description varchar(4096) not null,
 			repeats_every int not null default 0,
-			repeats_scale enum ('never', 'day', 'month', 'year') not null default 'never',
+			repeats_scale enum ('never', 'day', 'week, 'month', 'year') not null default 'never',
 			created_at datetime not null default current_timestamp,
 			changed_at datetime default null,
 			deleted_at datetime default null
@@ -153,10 +153,13 @@ func m02_email_recovery(tx *sql.Tx) error {
 		`create table if not exists email_changes (
 			id int primary key auto_increment,
 			email varchar(255) not null unique,
-			confirm_token text(16),
-			changed_from_id int references email_changes (id) default null,
-			undo_token text(16) default null,
+			changed_from_id int references email_changes (id),
+			changed_to_id int references email_changes (id) default null,
+			confirm_token text(50),
+			undo_token text(50),
 		);`,
+		//`insert into email_changes (email, changed_from_id, confirm_token, undo_token)
+		//select users.email, null, null, null from users;`,
 		`alter table users change email email_id int not null references email_changes (id);`,
 	}
 	return runSteps(tx, steps)

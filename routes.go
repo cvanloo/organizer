@@ -165,18 +165,27 @@ func events(w http.ResponseWriter, r *http.Request) error {
 	events := EventListing{
 		Events: []Event{
 			{
+				ID:                   1,
 				Title:                "Event 1",
 				Description:          "Description of Event One.",
+				RepeatsEvery:         1,
+				RepeatsScale:         RepeatsWeekly,
 				NumberOfParticipants: 3,
 			},
 			{
+				ID:                   2,
 				Title:                "Event 2",
 				Description:          "Description of Event Two.",
+				RepeatsEvery:         2,
+				RepeatsScale:         RepeatsWeekly,
 				NumberOfParticipants: 5,
 			},
 			{
+				ID:                   3,
 				Title:                "Event 3",
 				Description:          "Description of Event Three.",
+				RepeatsEvery:         1,
+				RepeatsScale:         RepeatsYearly,
 				NumberOfParticipants: 0,
 			},
 		},
@@ -185,11 +194,27 @@ func events(w http.ResponseWriter, r *http.Request) error {
 }
 
 func event(w http.ResponseWriter, r *http.Request) error {
+	eventID := r.FormValue("id")
+	if eventID == "" {
+		return BadRequest("missing field: id")
+	}
+	session, valid := r.Context().Value("SESSION").(*Session)
+	if !valid {
+		// Technically, should never reach this case.
+		return Unauthorized()
+	}
+	csrf, err := session.RequestCsrf()
+	if err != nil {
+		return err
+	}
 	event := EventDetails{
 		Event: Event{
-			Title:                "Event 1",
-			Description:          "Description for Event One.",
-			NumberOfParticipants: 3,
+			ID:                   2,
+			Title:                "Event 2",
+			Description:          "Description of Event Two.",
+			RepeatsEvery:         2,
+			RepeatsScale:         RepeatsWeekly,
+			NumberOfParticipants: 5,
 		},
 		Participants: []Participant{
 			{
@@ -206,6 +231,7 @@ func event(w http.ResponseWriter, r *http.Request) error {
 				Message: "Ich hätte da mal eine Frage...",
 			},
 		},
+		Csrf: csrf.Value,
 	}
 	return pages.Execute(w, "EventView", event)
 }

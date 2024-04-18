@@ -3,6 +3,7 @@ package organizer
 import (
 	"bytes"
 	_ "embed"
+	"fmt"
 	"html/template"
 	"io"
 )
@@ -111,15 +112,66 @@ const HtmlConfirmLogin = `
 {{ end }}
 `
 
-type EventListing struct {
-	Events []Event
+type (
+	EventListing struct {
+		Events []Event
+	}
+	TimeScale int
+	EventID   int
+	Event     struct {
+		ID                   EventID
+		Title, Description   string
+		RepeatsEvery         int
+		RepeatsScale         TimeScale
+		NumberOfParticipants int
+	}
+)
+
+const (
+	RepeatsNever TimeScale = iota
+	RepeatsDaily
+	RepeatsWeekly
+	RepeatsMonthly
+	RepeatsYearly
+)
+
+func (e Event) DoesRepeat() bool {
+	return e.RepeatsScale != RepeatsNever
 }
 
-type Event struct {
-	Title, Description   string
-	NumberOfParticipants int
+func (e Event) RepeatsText() string {
+	switch e.RepeatsScale {
+	case RepeatsNever:
+		return "wiederholt sich nie"
+	case RepeatsDaily:
+		if e.RepeatsEvery == 1 {
+			return "wiederholt sich jeden Tag"
+		} else {
+			return fmt.Sprintf("wiederholt sich alle %d Tage", e.RepeatsEvery)
+		}
+	case RepeatsWeekly:
+		if e.RepeatsEvery == 1 {
+			return "wiederholt sich jede Woche"
+		} else {
+			return fmt.Sprintf("wiederholt sich alle %d Wochen", e.RepeatsEvery)
+		}
+	case RepeatsMonthly:
+		if e.RepeatsEvery == 1 {
+			return "wiederholt sich jeden Monat"
+		} else {
+			return fmt.Sprintf("wiederholt sich alle %d Monate", e.RepeatsEvery)
+		}
+	case RepeatsYearly:
+		if e.RepeatsEvery == 1 {
+			return "wiederholt sich jedes Jahr"
+		} else {
+			return fmt.Sprintf("wiederholt sich alle %d Jahre", e.RepeatsEvery)
+		}
+	}
+	panic("unreachable")
 }
 
+// @todo: show event listing even when logged out (just without options requiring an account)
 const HtmlEventListing = `
 {{ define "EventListing" }}
 <!DOCTYPE html>
@@ -129,12 +181,16 @@ const HtmlEventListing = `
 	<title>Events &mdash; Organizer</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<link rel="stylesheet" href="/styles.css" title="Default Style">
+	<script src="/js/htmx.js"></script>
 </head>
 <body>
 	<h2>Events</h2>
 {{ range .Events }}
 	<div class="event-entry">
-		<h3>{{ .Title }}</h3>
+		<h3><a href="/event?id={{ .ID }}">{{ .Title }}</a></h3>
+{{ if .DoesRepeat }}
+		<p>({{ .RepeatsText }})</p>
+{{ end }}
 		<p>Teilnehmer: {{ .NumberOfParticipants }}</p>
 		<p style="text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">{{ .Description }}</p>
 	</div>
@@ -176,6 +232,7 @@ type EventDetails struct {
 	Event
 	Participants []Participant
 	Discussion   []Comment
+	Csrf         string // @todo: CsrfID (the other place(s) as well!)
 }
 
 type Participant struct {
@@ -207,7 +264,18 @@ const HtmlEventView = `
 	<div class="event-info">
 		<h2>{{ .Title }}</h2>
 		<p>{{ .Description }}</p>
+{{ if .DoesRepeat }}
+		<p>({{ .RepeatsText }})</p>
+{{ end }}
 		<p>Anzahl Teilnehmer: {{ .NumberOfParticipants }}</p>
+	</div>
+	<div class="event-register">
+		<form action="/event/register" method="post">
+			<input type="hidden" name="csrf" id="csrf" value="{{.Csrf}}">
+			<input type="hidden" name="event" id="event" value="{{.ID}}">
+			<input type="text" name="message" id="message" value="Ich mache mit!" />
+			<input type="submit" value="Eintragen">
+		</form>
 	</div>
 	<div class="event-participants">
 {{ range .Participants }}
@@ -227,9 +295,10 @@ const HtmlEventView = `
 	{{ end }}
 {{ end }}
 		<div class="comment-box">
-			<!-- @todo: include event id in form data / csrf token -->
 			<form action="/comment" method="post">
 				<label for="comment">Kommentar verfassen:</label>
+				<input type="hidden" name="csrf" id="csrf" value="{{.Csrf}}">
+				<input type="hidden" name="event" id="event" value="{{.ID}}">
 				<input type="text" name="comment" id="comment" required>
 				<input type="submit" value="Kommentieren">
 			</form>
