@@ -48,7 +48,7 @@ func (t Token) Expires(limit time.Duration) time.Time {
 type (
 	Authenticator struct {
 		loginTokens             map[UserID]LoginToken
-		sessionIDs              map[SessionID]*SessionToken
+		sessionTokens              map[SessionID]*SessionToken
 		csrfTokens              map[SessionID]CsrfToken
 		tokenLength             int
 		loginTokenExpiryLimit   time.Duration
@@ -61,7 +61,7 @@ type (
 func NewAuthenticator(opts ...AuthOpt) *Authenticator {
 	auth := &Authenticator{
 		loginTokens:             map[UserID]LoginToken{},
-		sessionIDs:              map[SessionID]*SessionToken{},
+		sessionTokens:           map[SessionID]*SessionToken{},
 		csrfTokens:              map[SessionID]CsrfToken{},
 		tokenLength:             50,
 		loginTokenExpiryLimit:   10 * time.Minute,
@@ -72,6 +72,12 @@ func NewAuthenticator(opts ...AuthOpt) *Authenticator {
 		opt(auth)
 	}
 	return auth
+}
+
+func WithTokenLength(length int) AuthOpt {
+	return func(a *Authenticator) {
+		a.tokenLength = length
+	}
 }
 
 func WithLoginTokenExpiryLimit(d time.Duration) AuthOpt {
@@ -92,24 +98,45 @@ func WithCsrfTokenExpiryLimit(d time.Duration) AuthOpt {
 	}
 }
 
-func WithTokenLength(length int) AuthOpt {
-	return func(a *Authenticator) {
-		a.tokenLength = length
-	}
-}
-
 func (a *Authenticator) SessionFromRequest(r *http.Request) (*SessionToken, bool) {
 	sessionCookie, err := r.Cookie("session")
 	if err != nil {
 		return nil, false
 	}
 	sessionID := SessionID(sessionCookie.Value)
-	session, err := a.SessionByID(sessionID)
-	if err != nil {
+	session, ok := a.SessionByID(sessionID)
+	return session, ok
+}
+
+func (a *Authenticator) SessionByID(session SessionID) (*SessionToken, bool) {
+	t, ok := a.sessionTokens[session]
+	if !ok {
 		return nil, false
 	}
-	return session, true
+	if t.HasExpired(a.sessionTokenExpiryLimit) {
+		delete(a.sessionTokens, session)
+		return nil, false
+	}
+	return t, true
 }
+
+func (a *Authenticator) CreateSession(u UserID) (*SessionToken, error) {
+	tokenStr, err := randomToken(a.tokenLength)
+	if err != nil {
+		return nil, err
+	}
+	token := &SessionToken{
+		Token:         NewToken(tokenStr),
+		User:          u,
+		Authenticated: false,
+	}
+	a.sessionTokens[SessionID(tokenStr)] = token
+	return token, nil
+}
+
+
+// ------ @todo: interface design
+
 
 func (a *Authenticator) CreateLogin(u UserID) (LoginToken, error) {
 	tokenStr, err := randomToken(a.tokenLength)
@@ -150,34 +177,6 @@ func (a *Authenticator) ValidateLogin(u UserID, loginID LoginID) error {
 
 	delete(a.loginTokens, u)
 	return nil
-}
-
-func (a *Authenticator) CreateSession(u UserID) (*SessionToken, error) {
-	tokenStr, err := randomToken(a.tokenLength)
-	if err != nil {
-		return nil, err
-	}
-	token := &SessionToken{
-		Token:         NewToken(tokenStr),
-		User:          u,
-		Authenticated: false,
-	}
-	a.sessionIDs[SessionID(tokenStr)] = token
-	return token, nil
-}
-
-func (a *Authenticator) SessionByID(session SessionID) (*SessionToken, error) {
-	t, ok := a.sessionIDs[session]
-	if !ok {
-		// @todo: app/business logic errors
-		return nil, errors.New("session does not exist")
-	}
-	if t.HasExpired(a.sessionTokenExpiryLimit) {
-		delete(a.sessionIDs, session)
-		// @todo: app/business logic errors
-		return nil, errors.New("session does not exist")
-	}
-	return t, nil
 }
 
 func (a *Authenticator) CreateCsrfForSession(session *SessionToken) (CsrfToken, error) {
