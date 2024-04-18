@@ -13,16 +13,16 @@ type (
 		Created time.Time
 		Valid   bool
 	}
-	LoginID      string
+	LoginID    string
 	LoginToken struct {
 		Token
 	}
-	CsrfID string
+	CsrfID    string
 	CsrfToken struct {
 		Token
 	}
 	SessionID string
-	Session struct {
+	Session   struct {
 		Token
 		User          UserID
 		authenticated bool
@@ -51,7 +51,7 @@ func (t Token) Expires(limit time.Duration) time.Time {
 
 type (
 	Authenticator struct {
-		sessions           map[SessionID]*Session
+		sessions                map[SessionID]*Session
 		tokenLength             int
 		loginTokenExpiryLimit   time.Duration
 		sessionTokenExpiryLimit time.Duration
@@ -62,7 +62,7 @@ type (
 
 func NewAuthenticator(opts ...AuthOpt) *Authenticator {
 	auth := &Authenticator{
-		sessions:           map[SessionID]*Session{},
+		sessions:                map[SessionID]*Session{},
 		tokenLength:             50,
 		loginTokenExpiryLimit:   10 * time.Minute,
 		sessionTokenExpiryLimit: time.Hour * 24 * 7,
