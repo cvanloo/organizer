@@ -23,6 +23,10 @@ type (
 		Authenticated bool
 	}
 	SessionID string
+	CsrfToken struct {
+		Token
+	}
+	CsrfID string
 )
 
 func NewToken(value string) Token {
@@ -45,9 +49,11 @@ type (
 	Authenticator struct {
 		loginTokens             map[UserID]LoginToken
 		sessionIDs              map[SessionID]*SessionToken
+		csrfTokens              map[SessionID]CsrfToken
 		tokenLength             int
 		loginTokenExpiryLimit   time.Duration
 		sessionTokenExpiryLimit time.Duration
+		csrfTokenExpiryLimit    time.Duration
 	}
 	AuthOpt func(*Authenticator)
 )
@@ -56,9 +62,11 @@ func NewAuthenticator(opts ...AuthOpt) *Authenticator {
 	auth := &Authenticator{
 		loginTokens:             map[UserID]LoginToken{},
 		sessionIDs:              map[SessionID]*SessionToken{},
+		csrfTokens:              map[SessionID]CsrfToken{},
 		tokenLength:             50,
 		loginTokenExpiryLimit:   10 * time.Minute,
 		sessionTokenExpiryLimit: time.Hour * 24 * 7,
+		csrfTokenExpiryLimit:    10 * time.Minute,
 	}
 	for _, opt := range opts {
 		opt(auth)
@@ -66,9 +74,21 @@ func NewAuthenticator(opts ...AuthOpt) *Authenticator {
 	return auth
 }
 
-func WithTokenExpiryLimit(d time.Duration) AuthOpt {
+func WithLoginTokenExpiryLimit(d time.Duration) AuthOpt {
 	return func(a *Authenticator) {
 		a.loginTokenExpiryLimit = d
+	}
+}
+
+func WithSessionTokenExpiryLimit(d time.Duration) AuthOpt {
+	return func(a *Authenticator) {
+		a.sessionTokenExpiryLimit = d
+	}
+}
+
+func WithCsrfTokenExpiryLimit(d time.Duration) AuthOpt {
+	return func(a *Authenticator) {
+		a.csrfTokenExpiryLimit = d
 	}
 }
 
@@ -158,6 +178,39 @@ func (a *Authenticator) SessionByID(session SessionID) (*SessionToken, error) {
 		return nil, errors.New("session does not exist")
 	}
 	return t, nil
+}
+
+func (a *Authenticator) CreateCsrfForSession(session *SessionToken) (CsrfToken, error) {
+	tokenStr, err := randomToken(a.tokenLength)
+	if err != nil {
+		return CsrfToken{}, err
+	}
+	token := CsrfToken{
+		Token: NewToken(tokenStr),
+	}
+	a.csrfTokens[SessionID(session.Value)] = token
+	return token, nil
+}
+
+func (a *Authenticator) ValidateCsrfForSession(session *SessionToken, csrf CsrfID) error {
+	token, ok := a.csrfTokens[SessionID(session.Value)]
+	if !ok {
+		// @todo: app/business logic errors
+		return errors.New("invalid csrf token")
+	}
+
+	if token.HasExpired(a.csrfTokenExpiryLimit) {
+		// @todo: app/business logic errors
+		return errors.New("invalid csrf token")
+	}
+
+	if string(csrf) != token.Value {
+		// @todo: app/business logic errors
+		return errors.New("invalid csrf token")
+	}
+
+	delete(a.csrfTokens, SessionID(session.Value))
+	return nil
 }
 
 func randomToken(length int) (string, error) {

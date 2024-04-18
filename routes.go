@@ -131,12 +131,23 @@ func (s *Service) authenticate(w http.ResponseWriter, r *http.Request) error {
 		if !s.auth.HasValidLoginRequest(user) {
 			return Unauthorized()
 		}
+		csrf, err := s.auth.CreateCsrfForSession(session)
+		if err != nil {
+			return err
+		}
 		data := ConfirmLoginData{
 			Token: token,
-			Csrf:  "", // @todo: not implemented / necessary?
+			Csrf:  csrf.Value,
 		}
 		return pages.Execute(w, "ConfirmLogin", data)
 	case http.MethodPost:
+		csrf := CsrfID(r.FormValue("csrf"))
+		if csrf == "" {
+			return BadRequest("missing parameter: csrf")
+		}
+		if err := s.auth.ValidateCsrfForSession(session, csrf); err != nil {
+			return Unauthorized()
+		}
 		if err := s.auth.ValidateLogin(user, token); err != nil {
 			return Unauthorized()
 		}
