@@ -135,6 +135,17 @@ func (a *Authenticator) CreateSession(u UserID) (*Session, error) {
 	return token, nil
 }
 
+func (a *Authenticator) createSessionWithID(u UserID, sessionID SessionID) *Session {
+	token := &Session{
+		Token:         NewToken(string(sessionID)),
+		User:          u,
+		authenticated: false,
+		auth:          a,
+	}
+	a.sessions[sessionID] = token
+	return token
+}
+
 func (s *Session) IsAuthenticated() bool {
 	return s.authenticated && !s.HasExpired(s.auth.sessionTokenExpiryLimit)
 }

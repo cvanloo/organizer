@@ -150,6 +150,7 @@ func (s *Service) authenticate(w http.ResponseWriter, r *http.Request) error {
 		if !session.InvalidateLogin(login) {
 			return Unauthorized()
 		}
+		// @todo: for all request handlers: change response depending on requested content-type?
 		//w.WriteHeader(http.StatusOK)
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return nil

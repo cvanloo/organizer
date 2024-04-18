@@ -6,12 +6,15 @@ build: .FORCE
 	go build ./...
 
 server: .FORCE
-	go build cmd/server.go
+	go build -tags=delve cmd/server.go
 
 run: server
 	sudo -u organizer ./server
 
 debug: .FORCE
-	dlv debug cmd/server.go
+	dlv debug --build-flags="-tags=delve" cmd/server.go
+
+release: .FORCE
+	go build cmd/server.go
 
 .FORCE:

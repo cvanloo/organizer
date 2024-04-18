@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/cvanloo/organizer"
+	"github.com/cvanloo/organizer/isdelve"
 
 	// godotenv.Load(): loads .env from project root
 	_ "github.com/joho/godotenv/autoload"
@@ -68,11 +69,25 @@ func main() {
 		organizer.WithUrl("http://localhost:8080/"),
 		organizer.WithMux(mux),
 		organizer.WithDatabase(cfg),
-		organizer.WithAuthentication(organizer.NewAuthenticator()),
+		organizer.WithAuthentication(organizer.NewAuthenticator(
+			organizer.WithTokenLength(50),
+			organizer.WithSessionTokenExpiryLimit(time.Hour*24*7),
+			organizer.WithLoginTokenExpiryLimit(10*time.Minute),
+			organizer.WithCsrfTokenExpiryLimit(10*time.Minute),
+		)),
 		organizer.WithMailer(organizer.NewMailer(mailCfg)),
 	)
 	if err != nil {
 		log.Fatalf("failed to initialize service: %v", err)
+	}
+
+	if isdelve.Enabled {
+		log.Print("warning: debug mode is enabled")
+		if testUser, ok := os.LookupEnv("TEST_USER"); ok {
+			sessionID := checkEnv("TEST_SESS")
+			session := check(service.TestUser(testUser, sessionID))
+			log.Printf("test user session token: %s", session.Value)
+		}
 	}
 
 	srv := http.Server{

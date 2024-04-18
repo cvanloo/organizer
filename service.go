@@ -3,10 +3,13 @@ package organizer
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"net/http"
 	"time"
+
+	"github.com/cvanloo/organizer/isdelve"
 )
 
 type (
@@ -71,6 +74,29 @@ func WithMailer(mail *Mailer) ServiceOpt {
 	return func(s *Service) {
 		s.mail = mail
 	}
+}
+
+func (s *Service) TestUser(email string, sessionID string) (*Session, error) {
+	if !isdelve.Enabled {
+		return nil, errors.New("test user must only be used in debug mode")
+	}
+	user, err := s.repo.User(email)
+	if err != nil {
+		return nil, err
+	}
+	session := s.auth.createSessionWithID(user.ID, SessionID(sessionID))
+	if err != nil {
+		return nil, err
+	}
+	login, err := session.RequestLogin()
+	if err != nil {
+		return nil, err
+	}
+	ok := session.InvalidateLogin(LoginID(login.Value))
+	if !ok {
+		panic("expected login to be valid")
+	}
+	return session, nil
 }
 
 func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
