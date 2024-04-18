@@ -3,7 +3,6 @@ package organizer
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"errors"
 	"net/http"
 	"time"
 )
@@ -12,27 +11,32 @@ type (
 	Token struct {
 		Value   string
 		Created time.Time
+		Valid   bool
 	}
+	LoginID      string
 	LoginToken struct {
 		Token
 	}
-	LoginID      string
-	SessionToken struct {
-		Token
-		User          UserID
-		Authenticated bool
-	}
-	SessionID string
+	CsrfID string
 	CsrfToken struct {
 		Token
 	}
-	CsrfID string
+	SessionID string
+	Session struct {
+		Token
+		User          UserID
+		authenticated bool
+		csrf          CsrfToken
+		login         LoginToken
+		auth          *Authenticator
+	}
 )
 
 func NewToken(value string) Token {
 	return Token{
 		Value:   value,
 		Created: time.Now(),
+		Valid:   true,
 	}
 }
 
@@ -47,9 +51,7 @@ func (t Token) Expires(limit time.Duration) time.Time {
 
 type (
 	Authenticator struct {
-		loginTokens             map[UserID]LoginToken
-		sessionTokens              map[SessionID]*SessionToken
-		csrfTokens              map[SessionID]CsrfToken
+		sessions           map[SessionID]*Session
 		tokenLength             int
 		loginTokenExpiryLimit   time.Duration
 		sessionTokenExpiryLimit time.Duration
@@ -60,9 +62,7 @@ type (
 
 func NewAuthenticator(opts ...AuthOpt) *Authenticator {
 	auth := &Authenticator{
-		loginTokens:             map[UserID]LoginToken{},
-		sessionTokens:           map[SessionID]*SessionToken{},
-		csrfTokens:              map[SessionID]CsrfToken{},
+		sessions:           map[SessionID]*Session{},
 		tokenLength:             50,
 		loginTokenExpiryLimit:   10 * time.Minute,
 		sessionTokenExpiryLimit: time.Hour * 24 * 7,
@@ -98,7 +98,7 @@ func WithCsrfTokenExpiryLimit(d time.Duration) AuthOpt {
 	}
 }
 
-func (a *Authenticator) SessionFromRequest(r *http.Request) (*SessionToken, bool) {
+func (a *Authenticator) SessionFromRequest(r *http.Request) (*Session, bool) {
 	sessionCookie, err := r.Cookie("session")
 	if err != nil {
 		return nil, false
@@ -108,108 +108,93 @@ func (a *Authenticator) SessionFromRequest(r *http.Request) (*SessionToken, bool
 	return session, ok
 }
 
-func (a *Authenticator) SessionByID(session SessionID) (*SessionToken, bool) {
-	t, ok := a.sessionTokens[session]
+func (a *Authenticator) SessionByID(session SessionID) (*Session, bool) {
+	t, ok := a.sessions[session]
 	if !ok {
 		return nil, false
 	}
 	if t.HasExpired(a.sessionTokenExpiryLimit) {
-		delete(a.sessionTokens, session)
+		delete(a.sessions, session)
 		return nil, false
 	}
 	return t, true
 }
 
-func (a *Authenticator) CreateSession(u UserID) (*SessionToken, error) {
+func (a *Authenticator) CreateSession(u UserID) (*Session, error) {
 	tokenStr, err := randomToken(a.tokenLength)
 	if err != nil {
 		return nil, err
 	}
-	token := &SessionToken{
+	token := &Session{
 		Token:         NewToken(tokenStr),
 		User:          u,
-		Authenticated: false,
+		authenticated: false,
+		auth:          a,
 	}
-	a.sessionTokens[SessionID(tokenStr)] = token
+	a.sessions[SessionID(tokenStr)] = token
 	return token, nil
 }
 
+func (s *Session) IsAuthenticated() bool {
+	return s.authenticated && !s.HasExpired(s.auth.sessionTokenExpiryLimit)
+}
 
-// ------ @todo: interface design
-
-
-func (a *Authenticator) CreateLogin(u UserID) (LoginToken, error) {
-	tokenStr, err := randomToken(a.tokenLength)
+func (s *Session) RequestLogin() (LoginToken, error) {
+	tokenStr, err := randomToken(s.auth.tokenLength)
 	if err != nil {
-		var zero LoginToken
-		return zero, err
+		return LoginToken{}, err
 	}
-	token := LoginToken{NewToken(tokenStr)}
-	a.loginTokens[u] = token
+	token := LoginToken{
+		Token: NewToken(tokenStr),
+	}
+	s.login = token
+	s.authenticated = false
 	return token, nil
 }
 
-func (a *Authenticator) HasValidLoginRequest(u UserID) bool {
-	t, ok := a.loginTokens[u]
-	if !ok {
+func (s *Session) HasValidLoginRequest() bool {
+	return s.login.Valid && !s.login.HasExpired(s.auth.loginTokenExpiryLimit)
+}
+
+func (s *Session) InvalidateLogin(login LoginID) bool {
+	if !s.login.Valid {
 		return false
 	}
-
-	return !t.HasExpired(a.loginTokenExpiryLimit)
+	if s.login.HasExpired(s.auth.loginTokenExpiryLimit) {
+		return false
+	}
+	if string(login) != s.login.Value {
+		return false
+	}
+	s.login.Valid = false
+	s.authenticated = true
+	return true
 }
 
-func (a *Authenticator) ValidateLogin(u UserID, loginID LoginID) error {
-	t, ok := a.loginTokens[u]
-	if !ok {
-		// @todo: app/business logic errors
-		return errors.New("login token expired")
-	}
-
-	if t.HasExpired(a.loginTokenExpiryLimit) {
-		// @todo: app/business logic errors
-		return errors.New("login token expired")
-	}
-
-	if string(loginID) != t.Value {
-		// @todo: app/business logic errors
-		return errors.New("login token expired")
-	}
-
-	delete(a.loginTokens, u)
-	return nil
-}
-
-func (a *Authenticator) CreateCsrfForSession(session *SessionToken) (CsrfToken, error) {
-	tokenStr, err := randomToken(a.tokenLength)
+func (s *Session) RequestCsrf() (CsrfToken, error) {
+	tokenStr, err := randomToken(s.auth.tokenLength)
 	if err != nil {
 		return CsrfToken{}, err
 	}
 	token := CsrfToken{
 		Token: NewToken(tokenStr),
 	}
-	a.csrfTokens[SessionID(session.Value)] = token
+	s.csrf = token
 	return token, nil
 }
 
-func (a *Authenticator) ValidateCsrfForSession(session *SessionToken, csrf CsrfID) error {
-	token, ok := a.csrfTokens[SessionID(session.Value)]
-	if !ok {
-		// @todo: app/business logic errors
-		return errors.New("invalid csrf token")
+func (s *Session) InvalidateCsrf(csrf CsrfID) bool {
+	if !s.csrf.Valid {
+		return false
 	}
-
-	if token.HasExpired(a.csrfTokenExpiryLimit) {
-		// @todo: app/business logic errors
-		return errors.New("invalid csrf token")
+	if s.csrf.HasExpired(s.auth.csrfTokenExpiryLimit) {
+		return false
 	}
-
-	if string(csrf) != token.Value {
-		// @todo: app/business logic errors
-		return errors.New("invalid csrf token")
+	if string(csrf) != s.csrf.Value {
+		return false
 	}
-
-	delete(a.csrfTokens, SessionID(session.Value))
-	return nil
+	s.csrf.Valid = false
+	return true
 }
 
 func randomToken(length int) (string, error) {

@@ -40,7 +40,7 @@ func redirect(to string) HandlerWithError {
 
 func (s *Service) routeIndex(w http.ResponseWriter, r *http.Request) error {
 	session, ok := s.auth.SessionFromRequest(r)
-	if ok && session.Authenticated {
+	if ok && session.IsAuthenticated() {
 		http.Redirect(w, r, "/events", http.StatusFound)
 		return nil
 	}
@@ -51,10 +51,12 @@ func (s *Service) withSession(next HandlerWithError, mustBeAuthed bool) HandlerW
 	return func(w http.ResponseWriter, r *http.Request) error {
 		session, ok := s.auth.SessionFromRequest(r)
 		if !ok {
-			return Unauthorized()
+			//return Unauthorized()
+			return redirect("/home")(w, r)
 		}
-		if mustBeAuthed && !session.Authenticated {
-			return Unauthorized()
+		if mustBeAuthed && !session.IsAuthenticated() {
+			//return Unauthorized()
+			return redirect("/home")(w, r)
 		}
 		ctx := context.WithValue(r.Context(), "SESSION", session)
 		return next(w, r.WithContext(ctx))
@@ -66,7 +68,7 @@ func (s *Service) withAuth(next HandlerWithError) HandlerWithError {
 }
 
 func (s *Service) login(w http.ResponseWriter, r *http.Request) error {
-	if r.Method != http.MethodPost {
+	if r.Method != http.MethodPost { // @todo: do check for every request handler
 		return MethodNotAllowed()
 	}
 
@@ -80,63 +82,60 @@ func (s *Service) login(w http.ResponseWriter, r *http.Request) error {
 		return Maybe404(err)
 	}
 
-	sessionToken, err := s.auth.CreateSession(user.ID)
+	session, err := s.auth.CreateSession(user.ID)
 	if err != nil {
 		return err
 	}
 
-	token, err := s.auth.CreateLogin(user.ID)
+	login, err := session.RequestLogin()
 	if err != nil {
 		return err
 	}
 
-	err = s.mail.SendLoginLink(user.Email, TokenLink{
-		Token: token.Value,
+	if err := s.mail.SendLoginLink(user.Email, TokenLink{
+		Token: login.Value,
 		Where: s.url,
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 
-	session := &http.Cookie{
+	sessionCookie := &http.Cookie{
 		Name:    "session",
-		Value:   sessionToken.Value,
-		Expires: sessionToken.Expires(s.auth.sessionTokenExpiryLimit),
+		Value:   session.Value,
+		Expires: session.Expires(s.auth.sessionTokenExpiryLimit),
 		// Domain: defaults to host of current document URL, not including subdomains
 		HttpOnly: true, // forbids access via Document.cookie / will still be sent with JS-initiated requests
 		SameSite: http.SameSiteStrictMode,
 		Secure:   true,
 	}
-	http.SetCookie(w, session)
+	http.SetCookie(w, sessionCookie)
 
 	return pages.Execute(w, "LoginLinkSent", nil)
 }
 
 func (s *Service) authenticate(w http.ResponseWriter, r *http.Request) error {
-	token := LoginID(r.FormValue("token"))
-	if token == "" {
+	login := LoginID(r.FormValue("token"))
+	if login == "" {
 		return BadRequest("missing parameter: token")
 	}
 
-	session, valid := r.Context().Value("SESSION").(*SessionToken)
+	session, valid := r.Context().Value("SESSION").(*Session)
 	if !valid {
 		// Technically, should never reach this case.
 		return Unauthorized()
 	}
 
-	user := session.User
-
 	switch r.Method {
 	case http.MethodGet:
-		if !s.auth.HasValidLoginRequest(user) {
+		if !session.HasValidLoginRequest() {
 			return Unauthorized()
 		}
-		csrf, err := s.auth.CreateCsrfForSession(session)
+		csrf, err := session.RequestCsrf()
 		if err != nil {
 			return err
 		}
 		data := ConfirmLoginData{
-			Token: token,
+			Token: login,
 			Csrf:  csrf.Value,
 		}
 		return pages.Execute(w, "ConfirmLogin", data)
@@ -145,13 +144,12 @@ func (s *Service) authenticate(w http.ResponseWriter, r *http.Request) error {
 		if csrf == "" {
 			return BadRequest("missing parameter: csrf")
 		}
-		if err := s.auth.ValidateCsrfForSession(session, csrf); err != nil {
+		if !session.InvalidateCsrf(csrf) {
 			return Unauthorized()
 		}
-		if err := s.auth.ValidateLogin(user, token); err != nil {
+		if !session.InvalidateLogin(login) {
 			return Unauthorized()
 		}
-		session.Authenticated = true
 		//w.WriteHeader(http.StatusOK)
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return nil
