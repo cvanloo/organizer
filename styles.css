@@ -65,6 +65,15 @@ input[type="checkbox"]:checked ~ .reveal-if-active {
 	flex-direction: column;
 }
 
+.group-horiz {
+	display: flex;
+	flex-direction: row;
+}
+
+.group-horiz input {
+	min-width: 0;
+}
+
 .text-center {
 	text-align: center;
 }

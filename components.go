@@ -268,9 +268,9 @@ window.onload = () => {
 		<div>
 			<label for="repeats">Wiederholt</label>
 			<input type="checkbox" name="repeats" id="repeats">
-			<div class="reveal-if-active">
-				<input type="number" name="every" id="every" value="1">
-				<select name="scale" id="scale">
+			<div class="reveal-if-active group-horiz">
+				<input type="number" name="every" id="every" value="1" min="1" style="flex: 1;">
+				<select name="scale" id="scale" style="flex: 2;">
 					<option value="daily" selected="selected">Täglich</option>
 					<option value="weekly">Wöchentlich</option>
 					<option value="monthly">Monatlich</option>
@@ -283,14 +283,14 @@ window.onload = () => {
 			<label for="min_part">Minimale Teilnehmerzahl</label>
 			<input type="checkbox" name="min_part" id="min_part">
 			<div class="reveal-if-active">
-				<input type="number" name="min_part_num" id="min_part_num" value="1">
+				<input type="number" name="min_part_num" id="min_part_num" value="1" min="2">
 			</div>
 		</div>
 		<div>
 			<label for="max_part">Maximale Teilnehmerzahl</label>
 			<input type="checkbox" name="max_part" id="max_part">
 			<div class="reveal-if-active">
-				<input type="number" name="max_part_num" id="max_part_num" value="25">
+				<input type="number" name="max_part_num" id="max_part_num" value="25" min="2">
 			</div>
 		</div>
 		<input type="submit" value="Erstellen">
