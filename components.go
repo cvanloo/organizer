@@ -310,15 +310,28 @@ window.onload = () => {
 `
 
 type EventDetails struct {
+	ThisUser     UserID
 	EventInfo
 	Participants []Participant
 	Discussion   []Comment
 	Csrf         string // @todo: CsrfID (the other place(s) as well!)
 }
 
+func (e EventDetails) HasNotSignedUp() bool {
+	for _, reg := range e.Participants {
+		if reg.userID == e.ThisUser {
+			return false
+		}
+	}
+	return true
+}
+
 type Participant struct {
 	DisplayName, acceptMessage string
+	userID UserID
 }
+
+// @todo: create dto package?
 
 func (p Participant) AcceptMessage() string {
 	if p.acceptMessage == "" {
@@ -351,19 +364,20 @@ const HtmlEventView = `
 {{ end }}
 		<p>Anzahl Teilnehmer: {{ .NumberOfParticipants }}</p>
 	</div>
+{{ if .HasNotSignedUp }}
 	<div class="event-register">
-		<form hx-post="/event/register" hx-target=".event-participants" hx-swap="beforeend" class="group-horiz">
+		<!--<form hx-post="/event/register" hx-target=".event-participants" hx-swap="beforeend" class="group-horiz">-->
+		<form hx-post="/event/register" hx-target="this" hx-swap="outerHTML" class="group-horiz">
 			<input type="hidden" name="csrf" id="csrf" value="{{.Csrf}}">
 			<input type="hidden" name="event" id="event" value="{{.ID}}">
 			<input type="text" name="message" id="message" value="Ich mache mit!" style="flex: 3;">
 			<input type="submit" value="Eintragen" style="flex: 2;">
 		</form>
 	</div>
-	<div class="event-participants">
+{{ end }}
 {{ range .Participants }}
 	{{ Render "EventRegistration" . }}
 {{ end }}
-	</div>
 	<div class="event-discussion">
 {{ range .Discussion }}
 	{{ block "Comment" . }}
@@ -390,9 +404,11 @@ const HtmlEventView = `
 
 const HtmlEventRegistration = `
 {{ define "EventRegistration" }}
-<div class="participant">
-	<p>{{ .DisplayName }}</p>
-	<p>{{ .AcceptMessage }}</p>
+<div class="event-participants">
+	<div class="participant">
+		<p>{{ .DisplayName }}</p>
+		<p>{{ .AcceptMessage }}</p>
+	</div>
 </div>
 {{ end }}
 `

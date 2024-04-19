@@ -17,6 +17,7 @@ type (
 		Event(id EventID) (Event, error)
 		CreateEvent(event Event) (Event, error)
 		RegisterEvent(reg EventRegistration) (EventRegistration, error)
+		EventRegistrations(eventID EventID) ([]EventRegistration, error)
 	}
 	UserID int
 	User   struct {

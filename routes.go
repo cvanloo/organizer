@@ -218,9 +218,35 @@ func (s *Service) event(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	eventRegs, err := s.repo.EventRegistrations(event.ID)
+	if err != nil {
+		// @robustness: event should definitely exist here
+		return Maybe404(err)
+	}
+	// @todo: refactor this stuff out into dto package
+	parts := make([]Participant, len(eventRegs))
+	for i := range eventRegs {
+		user, err := s.repo.User(eventRegs[i].User)
+		if err != nil {
+			// @robustness: not found here would be an internal server error though
+			return Maybe404(err)
+		}
+		part := Participant{}
+		part.userID = user.ID
+		part.DisplayName = user.Name
+		if user.Display.Valid {
+			part.DisplayName = user.Display.String
+		}
+		part.acceptMessage = ""
+		if eventRegs[i].Message.Valid {
+			part.acceptMessage = eventRegs[i].Message.String
+		}
+		parts[i] = part
+	}
 	eventDTO := EventDetails{
+		ThisUser: session.User,
 		EventInfo: *((&EventInfo{}).From(event)),
-		Participants: []Participant{}, // @todo: impl
+		Participants: parts,
 		Discussion: []Comment{}, // @todo: impl
 		Csrf: csrf.Value,
 	}

@@ -11,6 +11,7 @@ type MariaDB struct {
 	StmtEvent *sql.Stmt
 	StmtCreateEvent *sql.Stmt
 	StmtRegisterEvent *sql.Stmt
+	StmtEventRegistrations *sql.Stmt
 }
 
 var _ Repository = (*MariaDB)(nil)
@@ -67,6 +68,14 @@ func (m *MariaDB) Prepare(db *sql.DB) error {
 		m.StmtRegisterEvent = stmt
 	}
 
+	{
+		stmt, err := db.Prepare("select id, user_id, event_id, message from event_subscriptions where event_id = ?");
+		if err != nil {
+			return err
+		}
+		m.StmtEventRegistrations = stmt
+	}
+
 	return nil
 }
 
@@ -120,4 +129,20 @@ func (m *MariaDB) RegisterEvent(reg EventRegistration) (EventRegistration, error
 	}
 	reg.ID = EventRegistrationID(id)
 	return reg, nil
+}
+
+func (m *MariaDB) EventRegistrations(eventID EventID) ([]EventRegistration, error) {
+	rows, err := m.StmtEventRegistrations.Query(eventID)
+	if err != nil {
+		return nil, err
+	}
+	regs := []EventRegistration{}
+	for rows.Next() {
+		reg := EventRegistration{}
+		if err := rows.Scan(&reg.ID, &reg.User, &reg.Event, &reg.Message); err != nil {
+			return regs, err
+		}
+		regs = append(regs, reg)
+	}
+	return regs, nil
 }
