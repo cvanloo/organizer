@@ -2,7 +2,9 @@ package organizer
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strconv"
 )
 
 type StringResponder string
@@ -163,7 +165,7 @@ func (s *Service) authenticate(w http.ResponseWriter, r *http.Request) error {
 
 func events(w http.ResponseWriter, r *http.Request) error {
 	events := EventListing{
-		Events: []Event{
+		Events: []EventInfo{
 			{
 				ID:                   1,
 				Title:                "Event 1",
@@ -193,10 +195,18 @@ func events(w http.ResponseWriter, r *http.Request) error {
 	return pages.Execute(w, "EventListing", events)
 }
 
-func event(w http.ResponseWriter, r *http.Request) error {
-	eventID := r.FormValue("id")
-	if eventID == "" {
+func (s *Service) event(w http.ResponseWriter, r *http.Request) error {
+	eventIDStr := r.FormValue("id")
+	if eventIDStr == "" {
 		return BadRequest("missing field: id")
+	}
+	eventID, err := strconv.Atoi(eventIDStr)
+	if err != nil {
+		return BadRequest("invalid value for field id: must be a number")
+	}
+	event, err := s.repo.Event(EventID(eventID))
+	if err != nil {
+		return Maybe404(err)
 	}
 	session, valid := r.Context().Value("SESSION").(*Session)
 	if !valid {
@@ -207,35 +217,87 @@ func event(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	event := EventDetails{
-		Event: Event{
-			ID:                   2,
-			Title:                "Event 2",
-			Description:          "Description of Event Two.",
-			RepeatsEvery:         2,
-			RepeatsScale:         RepeatsWeekly,
-			NumberOfParticipants: 5,
-		},
-		Participants: []Participant{
-			{
-				FullName: "Max Muster",
-			},
-			{
-				FullName:      "Heinz Müller",
-				acceptMessage: "Komme gerne.",
-			},
-		},
-		Discussion: []Comment{
-			{
-				Author:  "Max Muster",
-				Message: "Ich hätte da mal eine Frage...",
-			},
-		},
+	eventDTO := EventDetails{
+		EventInfo: *((&EventInfo{}).From(event)),
+		Participants: []Participant{}, // @todo: impl
+		Discussion: []Comment{}, // @todo: impl
 		Csrf: csrf.Value,
 	}
-	return pages.Execute(w, "EventView", event)
+	return pages.Execute(w, "EventView", eventDTO)
 }
 
-func create(w http.ResponseWriter, r *http.Request) error {
-	return pages.Execute(w, "Create", nil)
+func (s *Service) create(w http.ResponseWriter, r *http.Request) error {
+	session, valid := r.Context().Value("SESSION").(*Session)
+	if !valid {
+		// Technically, should never reach this case.
+		return Unauthorized()
+	}
+
+	switch r.Method {
+	default:
+		return MethodNotAllowed()
+	case http.MethodGet:
+		return pages.Execute(w, "Create", nil)
+	case http.MethodPost:
+		title := r.FormValue("title")
+		desc := r.FormValue("description")
+		repeats := r.FormValue("repeats") == "on"
+		every := r.FormValue("every")
+		scale := r.FormValue("scale")
+		hasMinPart := r.FormValue("min_part") == "on"
+		minPartNum := r.FormValue("min_part_num")
+		hasMaxPart := r.FormValue("max_part") == "on"
+		maxPartNum := r.FormValue("max_part_num")
+
+		repeatsEvery := 0
+		if repeats {
+			val, err := strconv.Atoi(every)
+			if err != nil {
+				return BadRequest("invalid value for field every: must be a number")
+			}
+			repeatsEvery = val
+		}
+
+		repeatsScale := RepeatsNever
+		if repeats {
+			val, ok := ValidScale(scale)
+			if !ok {
+				return BadRequest("invalid value for field scale: must be one of never, daily, weekly, monthly, or yearly")
+			}
+			repeatsScale = val
+		}
+
+		minPart := 0
+		if hasMinPart {
+			val, err := strconv.Atoi(minPartNum)
+			if err != nil {
+				return BadRequest("invalid value for field min_part_num: must be a number")
+			}
+			minPart = val
+		}
+
+		maxPart := 0
+		if hasMaxPart {
+			val, err := strconv.Atoi(maxPartNum)
+			if err != nil {
+				return BadRequest("invalid value for field max_part_num: must be a number")
+			}
+			maxPart = val
+		}
+
+		event, err := s.repo.CreateEvent(NewEvent(
+			session.User,
+			title,
+			desc,
+			repeatsEvery,
+			repeatsScale,
+			minPart,
+			maxPart,
+		))
+		if err != nil {
+			return err
+		}
+
+		return redirect(fmt.Sprintf("/event?id=%d", event.ID))(w, r)
+	}
 }

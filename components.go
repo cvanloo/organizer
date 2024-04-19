@@ -114,32 +114,33 @@ const HtmlConfirmLogin = `
 
 type (
 	EventListing struct {
-		Events []Event
+		Events []EventInfo
 	}
-	TimeScale int
-	EventID   int
-	Event     struct {
+	EventInfo     struct {
 		ID                   EventID
 		Title, Description   string
 		RepeatsEvery         int
 		RepeatsScale         TimeScale
 		NumberOfParticipants int
+		// @todo: min/max participants
 	}
 )
 
-const (
-	RepeatsNever TimeScale = iota
-	RepeatsDaily
-	RepeatsWeekly
-	RepeatsMonthly
-	RepeatsYearly
-)
+func (dto *EventInfo) From(e Event) *EventInfo {
+	dto.ID = e.ID
+	dto.Title = e.Title
+	dto.Description = e.Description
+	dto.RepeatsEvery = e.RepeatsEvery
+	dto.RepeatsScale = e.RepeatsScale
+	dto.NumberOfParticipants = 0 // @todo: implement
+	return dto
+}
 
-func (e Event) DoesRepeat() bool {
+func (e EventInfo) DoesRepeat() bool {
 	return e.RepeatsScale != RepeatsNever
 }
 
-func (e Event) RepeatsText() string {
+func (e EventInfo) RepeatsText() string {
 	switch e.RepeatsScale {
 	case RepeatsNever:
 		return "wiederholt sich nie"
@@ -209,19 +210,90 @@ const HtmlCreate = `
 	<title>Event erstellen &mdash; Organizer</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<link rel="stylesheet" href="/styles.css" title="Default Style">
+	<script src="/js/htmx.js"></script>
+	<script defer>
+function set_repeats_text() {
+	const repeats = document.getElementById('repeats');
+	const every = document.getElementById('every');
+	const scale = document.getElementById('scale');
+	const repeats_text = document.getElementById('repeats_text');
+	function get_text() {
+		if (!repeats.checked) {
+			return 'Event wiederholt sich nicht.';
+		}
+		switch (scale.value) {
+		case 'daily':
+			if (every.value == 1) {
+				return 'Event wiederholt sich jeden Tag.';
+			} else {
+				return 'Event wiederholt sich alle ' + every.value + ' Tage.';
+			}
+		case 'weekly':
+			if (every.value == 1) {
+				return 'Event wiederholt sich jede Woche.';
+			} else {
+				return 'Event wiederholt sich alle ' + every.value + ' Wochen.';
+			}
+		case 'monthly':
+			if (every.value == 1) {
+				return 'Event wiederholt sich jeden Monat.';
+			} else {
+				return 'Event wiederholt sich alle ' + every.value + ' Monate.';
+			}
+		case 'yearly':
+			if (every.value == 1) {
+				return 'Event wiederholt sich jedes Jahr.';
+			} else {
+				return 'Event wiederholt sich alle ' + every.value + ' Jahre.';
+			}
+		default:
+			return 'invalid';
+		}
+	}
+	repeats_text.innerHTML = get_text();
+}
+window.onload = () => {
+	set_repeats_text();
+	document.getElementById('form_event_create').onchange = (e) => set_repeats_text();
+};
+	</script>
 </head>
 <body>
 	<h2>Event erstellen</h2>
-	<form action="/create" method="post">
+	<form hx-post="/create" hx-target="body" hx-swap="innerHTML" id="form_event_create" class="list">
 		<label for="title">Titel:</label>
 		<input type="text" name="title" id="title" required>
 		<label for="description">Beschreibung:</label>
-		<input type="text" name="description" id="description" required>
+		<textarea name="description" id="description" required></textarea>
+		<div>
+			<label for="repeats">Wiederholt</label>
+			<input type="checkbox" name="repeats" id="repeats">
+			<div class="reveal-if-active">
+				<input type="number" name="every" id="every" value="1">
+				<select name="scale" id="scale">
+					<option value="daily" selected="selected">Täglich</option>
+					<option value="weekly">Wöchentlich</option>
+					<option value="monthly">Monatlich</option>
+					<option value="yearly">Jährlich</option>
+				</select>
+			</div>
+		</div>
+		<p id="repeats_text"></p>
+		<div>
+			<label for="min_part">Minimale Teilnehmerzahl</label>
+			<input type="checkbox" name="min_part" id="min_part">
+			<div class="reveal-if-active">
+				<input type="number" name="min_part_num" id="min_part_num" value="1">
+			</div>
+		</div>
+		<div>
+			<label for="max_part">Maximale Teilnehmerzahl</label>
+			<input type="checkbox" name="max_part" id="max_part">
+			<div class="reveal-if-active">
+				<input type="number" name="max_part_num" id="max_part_num" value="25">
+			</div>
+		</div>
 		<input type="submit" value="Erstellen">
-		<!-- Minimal number of participants -->
-		<!-- Maximal number of participants -->
-		<!-- Repeat automatically: (Weekly/Daily/...) -->
-		<!-- maybe: Add (invite) people -->
 	</form>
 </body>
 </html>
@@ -229,7 +301,7 @@ const HtmlCreate = `
 `
 
 type EventDetails struct {
-	Event
+	EventInfo
 	Participants []Participant
 	Discussion   []Comment
 	Csrf         string // @todo: CsrfID (the other place(s) as well!)

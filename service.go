@@ -110,8 +110,8 @@ func (s *Service) setupRoutes() {
 	mux.Handle("/login", HandlerWithError(s.login))
 	mux.Handle("/auth", s.withSession(HandlerWithError(s.authenticate), false))
 	mux.Handle("/events", s.withAuth(HandlerWithError(events)))
-	mux.Handle("/create", s.withAuth(HandlerWithError(create)))
-	mux.Handle("/event/", s.withAuth(HandlerWithError(event)))
+	mux.Handle("/create", s.withAuth(HandlerWithError(s.create)))
+	mux.Handle("/event/", s.withAuth(HandlerWithError(s.event)))
 	mux.Handle("/styles.css", styles)
 	mux.Handle("/js/htmx.js", htmxScript)
 }
@@ -134,7 +134,9 @@ func (s *Service) initialDatabase() error {
 	db.SetMaxOpenConns(cfg.MaxConns)
 	db.SetMaxIdleConns(cfg.MaxConns)
 
-	repo.Prepare(db)
+	if err := repo.Prepare(db); err != nil {
+		return err
+	}
 	s.repo = repo
 
 	{

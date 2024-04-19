@@ -13,6 +13,8 @@ type (
 	Repository interface {
 		Prepare(db *sql.DB) error
 		User(email string) (User, error)
+		Event(id EventID) (Event, error)
+		CreateEvent(event Event) (Event, error)
 	}
 	UserID int
 	User   struct {
@@ -22,7 +24,48 @@ type (
 		Email   string
 		Icon    sql.NullString
 	}
+	EventID int
+	Event struct {
+		ID EventID
+		CreatedBy UserID
+		Title, Description string
+		RepeatsEvery int
+		RepeatsScale TimeScale
+		MinParticipants sql.NullInt64
+		MaxParticipants sql.NullInt64
+	}
+	TimeScale string
 )
+
+const (
+	RepeatsNever TimeScale = "never"
+	RepeatsDaily TimeScale = "daily"
+	RepeatsWeekly TimeScale = "weekly"
+	RepeatsMonthly TimeScale = "monthly"
+	RepeatsYearly TimeScale = "yearly"
+)
+
+func (t *TimeScale) Scan(src any) error {
+	*t = TimeScale(src.([]byte))
+	return nil
+}
+
+func ValidScale(scale string) (TimeScale, bool) {
+	switch TimeScale(scale) {
+	case RepeatsNever:
+		return RepeatsNever, true
+	case RepeatsDaily:
+		return RepeatsDaily, true
+	case RepeatsWeekly:
+		return RepeatsWeekly, true
+	case RepeatsMonthly:
+		return RepeatsMonthly, true
+	case RepeatsYearly:
+		return RepeatsYearly, true
+	default:
+		return RepeatsNever, false
+	}
+}
 
 type SqlConnection struct {
 	Driver      string
@@ -55,6 +98,24 @@ func (s SqlConnection) String() string {
 		)
 	}
 	return connStr
+}
+
+func NewEvent(by UserID, title, desc string, every int, scale TimeScale, minPart, maxPart int) Event {
+	return Event{
+		CreatedBy: by,
+		Title: title,
+		Description: desc,
+		RepeatsEvery: every,
+		RepeatsScale: scale,
+		MinParticipants: sql.NullInt64{
+			Int64: int64(minPart),
+			Valid: minPart != 0,
+		},
+		MaxParticipants: sql.NullInt64{
+			Int64: int64(maxPart),
+			Valid: maxPart != 0,
+		},
+	}
 }
 
 var migrations = []func(*sql.Tx) error{
@@ -129,7 +190,9 @@ func m01_initial(tx *sql.Tx) error {
 			title varchar(255) not null,
 			description varchar(4096) not null,
 			repeats_every int not null default 0,
-			repeats_scale enum ('never', 'day', 'week, 'month', 'year') not null default 'never',
+			repeats_scale enum ('never', 'daily', 'weekly', 'monthly', 'yearly') not null default 'never',
+			min_part_num int default null,
+			max_part_num int default null,
 			created_at datetime not null default current_timestamp,
 			changed_at datetime default null,
 			deleted_at datetime default null

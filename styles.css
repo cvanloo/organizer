@@ -25,13 +25,39 @@ h1, h2, h3 {
 	text-align: center;
 }
 
-input {
+input:not([type="checkbox"],[type="radio"]), textarea, select {
 	margin: 1rem;
 	padding: .5rem;
 }
 
+form p {
+	margin-left: 1rem;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+	margin-top: 1rem;
+}
+
+textarea {
+	resize: vertical;
+}
+
 label {
 	margin-left: 1rem;
+}
+
+.reveal-if-active {
+	opacity: 0;
+	max-height: 0;
+	overflow: hidden;
+}
+
+input[type="radio"]:checked ~ .reveal-if-active,
+input[type="checkbox"]:checked ~ .reveal-if-active {
+	opacity: 1;
+	max-height: none;
+	overflow: visible;
 }
 
 .list {
