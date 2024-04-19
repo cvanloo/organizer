@@ -39,7 +39,7 @@ func NewService(opts ...ServiceOpt) (*Service, error) {
 
 	s.setupRoutes()
 
-	if err := s.initialDatabase(); err != nil {
+	if err := s.initializeDatabase(); err != nil {
 		return nil, err
 	}
 
@@ -117,7 +117,7 @@ func (s *Service) setupRoutes() {
 	mux.Handle("/js/htmx.js", htmxScript)
 }
 
-func (s *Service) initialDatabase() error {
+func (s *Service) initializeDatabase() error {
 	var repo Repository
 	cfg := s.dbConn
 	switch cfg.Driver {
@@ -135,9 +135,6 @@ func (s *Service) initialDatabase() error {
 	db.SetMaxOpenConns(cfg.MaxConns)
 	db.SetMaxIdleConns(cfg.MaxConns)
 
-	if err := repo.Prepare(db); err != nil {
-		return err
-	}
 	s.repo = repo
 
 	{
@@ -150,6 +147,12 @@ func (s *Service) initialDatabase() error {
 
 	if err := migrate(db); err != nil {
 		return fmt.Errorf("db migrations failed to run: %w", err)
+	}
+
+	// preparations must be run after migrations, because some prepared
+	// statements might depend on tables from newer migrations.
+	if err := repo.Prepare(db); err != nil {
+		return err
 	}
 	return nil
 }
