@@ -2,6 +2,7 @@ package organizer
 
 import (
 	"context"
+	"log"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -79,7 +80,7 @@ func (s *Service) login(w http.ResponseWriter, r *http.Request) error {
 		return BadRequest("missing field: email")
 	}
 
-	user, err := s.repo.User(email)
+	user, err := s.repo.UserByEmail(email)
 	if err != nil {
 		return Maybe404(err)
 	}
@@ -300,4 +301,54 @@ func (s *Service) create(w http.ResponseWriter, r *http.Request) error {
 
 		return redirect(fmt.Sprintf("/event?id=%d", event.ID))(w, r)
 	}
+}
+
+func (s *Service) eventRegister(w http.ResponseWriter, r *http.Request) error {
+	session, valid := r.Context().Value("SESSION").(*Session)
+	if !valid {
+		// Technically, should never reach this case.
+		return Unauthorized()
+	}
+	csrf := CsrfID(r.FormValue("csrf"))
+	if csrf == "" {
+		return BadRequest("missing field: csrf")
+	}
+	if !session.InvalidateCsrf(csrf) {
+		return Unauthorized()
+	}
+	event := r.FormValue("event")
+	if event == "" {
+		return BadRequest("missing field: event")
+	}
+	eventID, err := strconv.Atoi(event)
+	if err != nil {
+		return BadRequest("invalid value for field even: must be a number")
+	}
+	msg := r.FormValue("message")
+
+	reg, err := s.repo.RegisterEvent(NewEventRegistration(
+		session.User,
+		EventID(eventID),
+		msg,
+	))
+	if err != nil {
+		return err
+	}
+
+	user, err := s.repo.User(reg.User)
+	if err != nil {
+		// @robustness: shouldn't happen that the user is not found
+		log.Printf("could not find user: %v, got error: %v", reg.User, err)
+		return Maybe404(err)
+	}
+
+	var participantInfo Participant
+	participantInfo.DisplayName = user.Name
+	if user.Display.Valid {
+		participantInfo.DisplayName = user.Display.String
+	}
+	if reg.Message.Valid {
+		participantInfo.acceptMessage = reg.Message.String
+	}
+	return pages.Execute(w, "EventRegistration", participantInfo)
 }

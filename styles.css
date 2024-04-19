@@ -72,8 +72,17 @@ input[type="checkbox"]:checked ~ .reveal-if-active {
 
 .group-horiz input {
 	min-width: 0;
+	margin-right: 0;
+}
+
+.group-horiz input:last-child {
+	margin-right: 1rem;
 }
 
 .text-center {
 	text-align: center;
+}
+
+.event-info, .event-participants {
+	margin: 1rem;
 }

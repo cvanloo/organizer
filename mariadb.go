@@ -7,8 +7,10 @@ import (
 type MariaDB struct {
 	db       *sql.DB
 	StmtUser *sql.Stmt
+	StmtUserByEmail *sql.Stmt
 	StmtEvent *sql.Stmt
 	StmtCreateEvent *sql.Stmt
+	StmtRegisterEvent *sql.Stmt
 }
 
 var _ Repository = (*MariaDB)(nil)
@@ -17,11 +19,19 @@ func (m *MariaDB) Prepare(db *sql.DB) error {
 	m.db = db
 
 	{
-		stmt, err := db.Prepare("select id, name, display, email, icon from users where email = ? limit 1;")
+		stmt, err := db.Prepare("select id, name, display, email, icon from users where id = ? limit 1;")
 		if err != nil {
 			return err
 		}
 		m.StmtUser = stmt
+	}
+
+	{
+		stmt, err := db.Prepare("select id, name, display, email, icon from users where email = ? limit 1;")
+		if err != nil {
+			return err
+		}
+		m.StmtUserByEmail = stmt
 	}
 
 	{
@@ -49,11 +59,25 @@ func (m *MariaDB) Prepare(db *sql.DB) error {
 		m.StmtCreateEvent = stmt
 	}
 
+	{
+		stmt, err := db.Prepare("insert into event_subscriptions (user_id, event_id, message) values (?, ?, ?);")
+		if err != nil {
+			return err
+		}
+		m.StmtRegisterEvent = stmt
+	}
+
 	return nil
 }
 
-func (m *MariaDB) User(email string) (u User, err error) {
-	row := m.StmtUser.QueryRow(email)
+func (m *MariaDB) User(id UserID) (u User, err error) {
+	row := m.StmtUser.QueryRow(id)
+	err = row.Scan(&u.ID, &u.Name, &u.Display, &u.Email, &u.Icon)
+	return u, err
+}
+
+func (m *MariaDB) UserByEmail(email string) (u User, err error) {
+	row := m.StmtUserByEmail.QueryRow(email)
 	err = row.Scan(&u.ID, &u.Name, &u.Display, &u.Email, &u.Icon)
 	return u, err
 }
@@ -83,4 +107,17 @@ func (m *MariaDB) Event(id EventID) (e Event, err error) {
 	row := m.StmtEvent.QueryRow(id)
 	err = row.Scan(&e.ID, &e.CreatedBy, &e.Title, &e.Description, &e.RepeatsEvery, &e.RepeatsScale, &e.MinParticipants, &e.MaxParticipants)
 	return e, err
+}
+
+func (m *MariaDB) RegisterEvent(reg EventRegistration) (EventRegistration, error) {
+	res, err := m.StmtRegisterEvent.Exec(reg.User, reg.Event, reg.Message)
+	if err != nil {
+		return reg, err
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return reg, err
+	}
+	reg.ID = EventRegistrationID(id)
+	return reg, nil
 }

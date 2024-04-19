@@ -80,7 +80,7 @@ func (s *Service) TestUser(email string, sessionID string) (*Session, error) {
 	if !isdelve.Enabled {
 		return nil, errors.New("test user must only be used in debug mode")
 	}
-	user, err := s.repo.User(email)
+	user, err := s.repo.UserByEmail(email)
 	if err != nil {
 		return nil, err
 	}
@@ -112,6 +112,7 @@ func (s *Service) setupRoutes() {
 	mux.Handle("/events", s.withAuth(HandlerWithError(events)))
 	mux.Handle("/create", s.withAuth(HandlerWithError(s.create)))
 	mux.Handle("/event/", s.withAuth(HandlerWithError(s.event)))
+	mux.Handle("/event/register", s.withAuth(HandlerWithError(s.eventRegister)))
 	mux.Handle("/styles.css", styles)
 	mux.Handle("/js/htmx.js", htmxScript)
 }

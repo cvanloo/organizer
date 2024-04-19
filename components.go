@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+
+	"github.com/russross/blackfriday/v2"
 )
 
 var (
@@ -15,14 +17,16 @@ var (
 func init() {
 	pages.Funcs(template.FuncMap{
 		"Render": Render,
+		"RenderMarkdown": RenderMarkdown,
 	})
 
 	template.Must(pages.Parse(HtmlLanding))
+	template.Must(pages.Parse(HtmlLoginLinkSent))
 	template.Must(pages.Parse(HtmlConfirmLogin))
 	template.Must(pages.Parse(HtmlEventListing))
 	template.Must(pages.Parse(HtmlCreate))
 	template.Must(pages.Parse(HtmlEventView))
-	template.Must(pages.Parse(HtmlLoginLinkSent))
+	template.Must(pages.Parse(HtmlEventRegistration))
 }
 
 //go:embed htmx/htmx.js
@@ -49,6 +53,11 @@ func Render(name string, data any) (template.HTML, error) {
 	buf := &bytes.Buffer{}
 	err := pages.Execute(buf, name, data)
 	return template.HTML(buf.String()), err
+}
+
+func RenderMarkdown(data string) template.HTML {
+	md := blackfriday.Run([]byte(data))
+	return template.HTML(md)
 }
 
 // @todo: add loading anim while login is being processed
@@ -143,30 +152,30 @@ func (e EventInfo) DoesRepeat() bool {
 func (e EventInfo) RepeatsText() string {
 	switch e.RepeatsScale {
 	case RepeatsNever:
-		return "wiederholt sich nie"
+		return "Wiederholt sich nie."
 	case RepeatsDaily:
 		if e.RepeatsEvery == 1 {
-			return "wiederholt sich jeden Tag"
+			return "Wiederholt sich jeden Tag."
 		} else {
-			return fmt.Sprintf("wiederholt sich alle %d Tage", e.RepeatsEvery)
+			return fmt.Sprintf("Wiederholt sich alle %d Tage.", e.RepeatsEvery)
 		}
 	case RepeatsWeekly:
 		if e.RepeatsEvery == 1 {
-			return "wiederholt sich jede Woche"
+			return "Wiederholt sich jede Woche."
 		} else {
-			return fmt.Sprintf("wiederholt sich alle %d Wochen", e.RepeatsEvery)
+			return fmt.Sprintf("Wiederholt sich alle %d Wochen.", e.RepeatsEvery)
 		}
 	case RepeatsMonthly:
 		if e.RepeatsEvery == 1 {
-			return "wiederholt sich jeden Monat"
+			return "Wiederholt sich jeden Monat."
 		} else {
-			return fmt.Sprintf("wiederholt sich alle %d Monate", e.RepeatsEvery)
+			return fmt.Sprintf("Wiederholt sich alle %d Monate.", e.RepeatsEvery)
 		}
 	case RepeatsYearly:
 		if e.RepeatsEvery == 1 {
-			return "wiederholt sich jedes Jahr"
+			return "Wiederholt sich jedes Jahr."
 		} else {
-			return fmt.Sprintf("wiederholt sich alle %d Jahre", e.RepeatsEvery)
+			return fmt.Sprintf("Wiederholt sich alle %d Jahre.", e.RepeatsEvery)
 		}
 	}
 	panic("unreachable")
@@ -187,7 +196,7 @@ const HtmlEventListing = `
 <body>
 	<h2>Events</h2>
 {{ range .Events }}
-	<div class="event-entry">
+	<div class="event-entry">SeeOther
 		<h3><a href="/event?id={{ .ID }}">{{ .Title }}</a></h3>
 {{ if .DoesRepeat }}
 		<p>({{ .RepeatsText }})</p>
@@ -264,7 +273,7 @@ window.onload = () => {
 		<label for="title">Titel:</label>
 		<input type="text" name="title" id="title" required>
 		<label for="description">Beschreibung:</label>
-		<textarea name="description" id="description" required></textarea>
+		<textarea name="description" id="description" placeholder="Unterstützt Markdown" required></textarea>
 		<div>
 			<label for="repeats">Wiederholt</label>
 			<input type="checkbox" name="repeats" id="repeats">
@@ -283,7 +292,7 @@ window.onload = () => {
 			<label for="min_part">Minimale Teilnehmerzahl</label>
 			<input type="checkbox" name="min_part" id="min_part">
 			<div class="reveal-if-active">
-				<input type="number" name="min_part_num" id="min_part_num" value="1" min="2">
+				<input type="number" name="min_part_num" id="min_part_num" value="2" min="2">
 			</div>
 		</div>
 		<div>
@@ -308,7 +317,7 @@ type EventDetails struct {
 }
 
 type Participant struct {
-	FullName, acceptMessage string
+	DisplayName, acceptMessage string
 }
 
 func (p Participant) AcceptMessage() string {
@@ -331,30 +340,28 @@ const HtmlEventView = `
 	<title>Eventansicht &mdash; Organizer</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<link rel="stylesheet" href="/styles.css" title="Default Style">
+	<script src="/js/htmx.js"></script>
 </head>
 <body>
 	<div class="event-info">
 		<h2>{{ .Title }}</h2>
-		<p>{{ .Description }}</p>
+		{{ RenderMarkdown .Description }}
 {{ if .DoesRepeat }}
 		<p>({{ .RepeatsText }})</p>
 {{ end }}
 		<p>Anzahl Teilnehmer: {{ .NumberOfParticipants }}</p>
 	</div>
 	<div class="event-register">
-		<form action="/event/register" method="post">
+		<form hx-post="/event/register" hx-target=".event-participants" hx-swap="beforeend" class="group-horiz">
 			<input type="hidden" name="csrf" id="csrf" value="{{.Csrf}}">
 			<input type="hidden" name="event" id="event" value="{{.ID}}">
-			<input type="text" name="message" id="message" value="Ich mache mit!" />
-			<input type="submit" value="Eintragen">
+			<input type="text" name="message" id="message" value="Ich mache mit!" style="flex: 3;">
+			<input type="submit" value="Eintragen" style="flex: 2;">
 		</form>
 	</div>
 	<div class="event-participants">
 {{ range .Participants }}
-		<div class="participant">
-			<p>{{ .FullName }}</p>
-			<p>{{ .AcceptMessage }}</p>
-		</div>
+	{{ Render "EventRegistration" . }}
 {{ end }}
 	</div>
 	<div class="event-discussion">
@@ -367,7 +374,7 @@ const HtmlEventView = `
 	{{ end }}
 {{ end }}
 		<div class="comment-box">
-			<form action="/comment" method="post">
+			<form action="/comment" method="post" class="list">
 				<label for="comment">Kommentar verfassen:</label>
 				<input type="hidden" name="csrf" id="csrf" value="{{.Csrf}}">
 				<input type="hidden" name="event" id="event" value="{{.ID}}">
@@ -378,5 +385,14 @@ const HtmlEventView = `
 	</div>
 </body>
 </html>
+{{ end }}
+`
+
+const HtmlEventRegistration = `
+{{ define "EventRegistration" }}
+<div class="participant">
+	<p>{{ .DisplayName }}</p>
+	<p>{{ .AcceptMessage }}</p>
+</div>
 {{ end }}
 `

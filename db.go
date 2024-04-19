@@ -12,9 +12,11 @@ import (
 type (
 	Repository interface {
 		Prepare(db *sql.DB) error
-		User(email string) (User, error)
+		User(id UserID) (User, error)
+		UserByEmail(email string) (User, error)
 		Event(id EventID) (Event, error)
 		CreateEvent(event Event) (Event, error)
+		RegisterEvent(reg EventRegistration) (EventRegistration, error)
 	}
 	UserID int
 	User   struct {
@@ -33,6 +35,13 @@ type (
 		RepeatsScale TimeScale
 		MinParticipants sql.NullInt64
 		MaxParticipants sql.NullInt64
+	}
+	EventRegistrationID int
+	EventRegistration struct {
+		ID EventRegistrationID
+		User UserID
+		Event EventID
+		Message sql.NullString
 	}
 	TimeScale string
 )
@@ -116,6 +125,16 @@ func NewEvent(by UserID, title, desc string, every int, scale TimeScale, minPart
 			Valid: maxPart != 0,
 		},
 	}
+}
+
+func NewEventRegistration(by UserID, to EventID, msg string) (reg EventRegistration) {
+	reg.User = by
+	reg.Event = to
+	reg.Message = sql.NullString{
+		String: msg,
+		Valid: len(msg) > 0,
+	}
+	return reg
 }
 
 var migrations = []func(*sql.Tx) error{
@@ -202,6 +221,7 @@ func m01_initial(tx *sql.Tx) error {
 			user_id int not null references users (id),
 			event_id int not null references events (id),
 			unique index (user_id, event_id),
+			message varchar(512) default null,
 			created_at datetime not null default current_timestamp,
 			changed_at datetime default null,
 			deleted_at datetime default null
