@@ -103,18 +103,18 @@ func (a *Authenticator) SessionFromRequest(r *http.Request) (*Session, bool) {
 	if err != nil {
 		return nil, false
 	}
-	sessionID := SessionID(sessionCookie.Value)
-	session, ok := a.SessionByID(sessionID)
+	id := SessionID(sessionCookie.Value)
+	session, ok := a.SessionByID(id)
 	return session, ok
 }
 
-func (a *Authenticator) SessionByID(session SessionID) (*Session, bool) {
-	t, ok := a.sessions[session]
+func (a *Authenticator) SessionByID(id SessionID) (*Session, bool) {
+	t, ok := a.sessions[id]
 	if !ok {
 		return nil, false
 	}
 	if t.HasExpired(a.sessionTokenExpiryLimit) {
-		delete(a.sessions, session)
+		delete(a.sessions, id)
 		return nil, false
 	}
 	return t, true
@@ -125,13 +125,7 @@ func (a *Authenticator) CreateSession(u UserID) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	token := &Session{
-		Token:         NewToken(tokenStr),
-		User:          u,
-		authenticated: false,
-		auth:          a,
-	}
-	a.sessions[SessionID(tokenStr)] = token
+	token := a.createSessionWithID(u, SessionID(tokenStr))
 	return token, nil
 }
 
@@ -147,7 +141,7 @@ func (a *Authenticator) createSessionWithID(u UserID, sessionID SessionID) *Sess
 }
 
 func (s *Session) IsAuthenticated() bool {
-	return s.authenticated && !s.HasExpired(s.auth.sessionTokenExpiryLimit)
+	return s.authenticated && s.Valid && !s.HasExpired(s.auth.sessionTokenExpiryLimit)
 }
 
 func (s *Session) RequestLogin() (LoginToken, error) {
