@@ -196,7 +196,7 @@ const HtmlEventListing = `
 <body>
 	<h2>Events</h2>
 {{ range .Events }}
-	<div class="event-entry">SeeOther
+	<div class="event-entry">
 		<h3><a href="/event?id={{ .ID }}">{{ .Title }}</a></h3>
 {{ if .DoesRepeat }}
 		<p>({{ .RepeatsText }})</p>
