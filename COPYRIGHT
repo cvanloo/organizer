@@ -1,5 +1,8 @@
-Copyright (c) Colin van Loo 2024
+Copyright (c) 2024 Colin van Loo
 
-All source files unless noted otherwise are licensed under AGPL 3.0 or later.
+All source files, unless explicitly noted otherwise, are licensed under the AGPL 3.0 or later.
 
-The sources in htmx/ and vendor/ are subject to their own licenses and copyrights.
+Exceptions:
+- Sources in the `htmx/` and `vendor/` directories are subject to their own licenses and copyrights.
+
+These dependencies include a LICENSE file located in the root of their respective source directories.
