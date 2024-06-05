@@ -48,6 +48,7 @@ label {
 }
 
 .reveal-if-active {
+	display: none !important;
 	opacity: 0;
 	max-height: 0;
 	overflow: hidden;
@@ -55,6 +56,7 @@ label {
 
 input[type="radio"]:checked ~ .reveal-if-active,
 input[type="checkbox"]:checked ~ .reveal-if-active {
+	display: flex !important;
 	opacity: 1;
 	max-height: none;
 	overflow: visible;
