@@ -109,7 +109,7 @@ func (s *Service) setupRoutes() {
 	mux.Handle("/home", HandlerWithError(s.routeIndex))
 	mux.Handle("/login", HandlerWithError(s.login))
 	mux.Handle("/auth", s.withSession(HandlerWithError(s.authenticate), false))
-	mux.Handle("/events", s.withAuth(HandlerWithError(events)))
+	mux.Handle("/events", s.withAuth(HandlerWithError(s.events)))
 	mux.Handle("/create", s.withAuth(HandlerWithError(s.create)))
 	mux.Handle("/event/", s.withAuth(HandlerWithError(s.event)))
 	mux.Handle("/event/register", s.withAuth(HandlerWithError(s.eventRegister)))

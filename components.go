@@ -141,7 +141,7 @@ func (dto *EventInfo) From(e Event) *EventInfo {
 	dto.Description = e.Description
 	dto.RepeatsEvery = e.RepeatsEvery
 	dto.RepeatsScale = e.RepeatsScale
-	dto.NumberOfParticipants = 0 // @todo: implement
+	dto.NumberOfParticipants = e.NumberOfParticipants
 	return dto
 }
 

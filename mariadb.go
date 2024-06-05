@@ -9,6 +9,7 @@ type MariaDB struct {
 	StmtUser *sql.Stmt
 	StmtUserByEmail *sql.Stmt
 	StmtEvent *sql.Stmt
+	StmtEvents *sql.Stmt
 	StmtCreateEvent *sql.Stmt
 	StmtRegisterEvent *sql.Stmt
 	StmtEventRegistrations *sql.Stmt
@@ -16,6 +17,7 @@ type MariaDB struct {
 
 var _ Repository = (*MariaDB)(nil)
 
+// @todo: how to handle rows marked as deleted?
 func (m *MariaDB) Prepare(db *sql.DB) error {
 	m.db = db
 
@@ -36,11 +38,60 @@ func (m *MariaDB) Prepare(db *sql.DB) error {
 	}
 
 	{
-		stmt, err := db.Prepare("select id, created_by, title, description, repeats_every, repeats_scale, min_part_num, max_part_num from events where id = ? limit 1;")
+		stmt, err := db.Prepare(
+			`select
+				events.id,
+				events.created_by,
+				events.title,
+				events.description,
+				events.repeats_every,
+				events.repeats_scale,
+				events.min_part_num,
+				events.max_part_num,
+				number_of_participants
+			from events
+			inner join
+				(select
+					event_id,
+					count(*) as number_of_participants
+				from
+					event_subscriptions
+					group by event_id)
+			as event_counts on events.id = event_counts.event_id
+			where events.id = ? limit 1;`)
 		if err != nil {
 			return err
 		}
 		m.StmtEvent = stmt
+	}
+
+	{
+		stmt, err := db.Prepare(
+			`select
+				events.id,
+				events.created_by,
+				events.title,
+				events.description,
+				events.repeats_every,
+				events.repeats_scale,
+				events.min_part_num,
+				events.max_part_num,
+				number_of_participants
+			from events
+			inner join
+				(select
+					event_id,
+					count(*) as number_of_participants
+				from
+					event_subscriptions
+				where
+					deleted_at is null
+				group by event_id)
+			as event_counts on events.id = event_counts.event_id;`)
+		if err != nil {
+			return err
+		}
+		m.StmtEvents = stmt
 	}
 
 	{
@@ -114,7 +165,7 @@ func (m *MariaDB) CreateEvent(event Event) (Event, error) {
 
 func (m *MariaDB) Event(id EventID) (e Event, err error) {
 	row := m.StmtEvent.QueryRow(id)
-	err = row.Scan(&e.ID, &e.CreatedBy, &e.Title, &e.Description, &e.RepeatsEvery, &e.RepeatsScale, &e.MinParticipants, &e.MaxParticipants)
+	err = row.Scan(&e.ID, &e.CreatedBy, &e.Title, &e.Description, &e.RepeatsEvery, &e.RepeatsScale, &e.MinParticipants, &e.MaxParticipants, &e.NumberOfParticipants)
 	return e, err
 }
 
@@ -145,4 +196,21 @@ func (m *MariaDB) EventRegistrations(eventID EventID) ([]EventRegistration, erro
 		regs = append(regs, reg)
 	}
 	return regs, nil
+}
+
+func (m *MariaDB) Events() ([]Event, error) {
+	rows, err := m.StmtEvents.Query()
+	if err != nil {
+		return nil, err
+	}
+	events := []Event{}
+	for rows.Next() {
+		e := Event{}
+		err := rows.Scan(&e.ID, &e.CreatedBy, &e.Title, &e.Description, &e.RepeatsEvery, &e.RepeatsScale, &e.MinParticipants, &e.MaxParticipants, &e.NumberOfParticipants)
+		if err != nil {
+			return events, err
+		}
+		events = append(events, e)
+	}
+	return events, nil
 }

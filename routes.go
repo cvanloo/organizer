@@ -164,39 +164,39 @@ func (s *Service) authenticate(w http.ResponseWriter, r *http.Request) error {
 	return Unauthorized()
 }
 
-func events(w http.ResponseWriter, r *http.Request) error {
-	events := EventListing{
-		Events: []EventInfo{
-			{
-				ID:                   1,
-				Title:                "Event 1",
-				Description:          "Description of Event One.",
-				RepeatsEvery:         1,
-				RepeatsScale:         RepeatsWeekly,
-				NumberOfParticipants: 3,
-			},
-			{
-				ID:                   2,
-				Title:                "Event 2",
-				Description:          "Description of Event Two.",
-				RepeatsEvery:         2,
-				RepeatsScale:         RepeatsWeekly,
-				NumberOfParticipants: 5,
-			},
-			{
-				ID:                   3,
-				Title:                "Event 3",
-				Description:          "Description of Event Three.",
-				RepeatsEvery:         1,
-				RepeatsScale:         RepeatsYearly,
-				NumberOfParticipants: 0,
-			},
-		},
+func (s *Service) events(w http.ResponseWriter, r *http.Request) error {
+	events, err := s.repo.Events()
+	if err != nil {
+		return Maybe404(err)
 	}
-	return pages.Execute(w, "EventListing", events)
+
+	// @todo: turn this into a dto package function
+	eventsDto := EventListing{}
+	for _, event := range events {
+		eventsDto.Events = append(eventsDto.Events, EventInfo{
+			ID: event.ID,
+			Title: event.Title,
+			Description: event.Description,
+			RepeatsEvery: event.RepeatsEvery,
+			RepeatsScale: event.RepeatsScale,
+			NumberOfParticipants: event.NumberOfParticipants,
+		})
+	}
+
+	return pages.Execute(w, "EventListing", eventsDto)
 }
 
 func (s *Service) event(w http.ResponseWriter, r *http.Request) error {
+	session, valid := r.Context().Value("SESSION").(*Session)
+	if !valid {
+		// Technically, should never reach this case.
+		return Unauthorized()
+	}
+	csrf, err := session.RequestCsrf()
+	if err != nil {
+		return err
+	}
+
 	eventIDStr := r.FormValue("id")
 	if eventIDStr == "" {
 		return BadRequest("missing field: id")
@@ -209,20 +209,12 @@ func (s *Service) event(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return Maybe404(err)
 	}
-	session, valid := r.Context().Value("SESSION").(*Session)
-	if !valid {
-		// Technically, should never reach this case.
-		return Unauthorized()
-	}
-	csrf, err := session.RequestCsrf()
-	if err != nil {
-		return err
-	}
 	eventRegs, err := s.repo.EventRegistrations(event.ID)
 	if err != nil {
 		// @robustness: event should definitely exist here
 		return Maybe404(err)
 	}
+
 	// @todo: refactor this stuff out into dto package
 	parts := make([]Participant, len(eventRegs))
 	for i := range eventRegs {
@@ -245,7 +237,7 @@ func (s *Service) event(w http.ResponseWriter, r *http.Request) error {
 	}
 	eventDTO := EventDetails{
 		ThisUser: session.User,
-		EventInfo: *((&EventInfo{}).From(event)),
+		EventInfo: *((&EventInfo{}).From(event)), // @todo: No.
 		Participants: parts,
 		Discussion: []Comment{}, // @todo: impl
 		Csrf: csrf.Value,

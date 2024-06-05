@@ -17,6 +17,7 @@ type (
 		Event(id EventID) (Event, error)
 		CreateEvent(event Event) (Event, error)
 		RegisterEvent(reg EventRegistration) (EventRegistration, error)
+		Events() ([]Event, error)
 		EventRegistrations(eventID EventID) ([]EventRegistration, error)
 	}
 	UserID int
@@ -36,6 +37,7 @@ type (
 		RepeatsScale TimeScale
 		MinParticipants sql.NullInt64
 		MaxParticipants sql.NullInt64
+		NumberOfParticipants int
 	}
 	EventRegistrationID int
 	EventRegistration struct {
