@@ -48,9 +48,12 @@ func (m *MariaDB) Prepare(db *sql.DB) error {
 				events.repeats_scale,
 				events.min_part_num,
 				events.max_part_num,
-				number_of_participants
+				case when number_of_participants is NULL
+					then 0
+					else number_of_participants
+				end as number_of_participants
 			from events
-			inner join
+			left join
 				(select
 					event_id,
 					count(*) as number_of_participants
@@ -76,9 +79,12 @@ func (m *MariaDB) Prepare(db *sql.DB) error {
 				events.repeats_scale,
 				events.min_part_num,
 				events.max_part_num,
-				number_of_participants
+				case when number_of_participants is NULL
+					then 0
+					else number_of_participants
+				end as number_of_participants
 			from events
-			inner join
+			left join
 				(select
 					event_id,
 					count(*) as number_of_participants
