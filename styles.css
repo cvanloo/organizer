@@ -88,3 +88,24 @@ input[type="checkbox"]:checked ~ .reveal-if-active {
 .event-info, .event-participants {
 	margin: 1rem;
 }
+
+.participant {
+	display: grid;
+	grid-template-columns: auto auto auto;
+	grid-template-rows: auto;
+}
+
+.participant #display-name {
+	grid-column-start: 1;
+	grid-column-end: 1;
+}
+
+.participant #accept-message {
+	grid-column-start: 2;
+	grid-column-end: 2;
+}
+
+.participant #cancel {
+	grid-column-start: 3;
+	grid-column-end: 3;
+}

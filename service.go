@@ -113,6 +113,7 @@ func (s *Service) setupRoutes() {
 	mux.Handle("/create", s.withAuth(HandlerWithError(s.create)))
 	mux.Handle("/event/", s.withAuth(HandlerWithError(s.event)))
 	mux.Handle("/event/register", s.withAuth(HandlerWithError(s.eventRegister)))
+	mux.Handle("/event/deregister", s.withAuth(HandlerWithError(s.eventDeregister)))
 	mux.Handle("/styles.css", styles)
 	mux.Handle("/js/htmx.js", htmxScript)
 }

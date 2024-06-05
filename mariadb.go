@@ -1,6 +1,7 @@
 package organizer
 
 import (
+	"errors"
 	"database/sql"
 )
 
@@ -12,7 +13,11 @@ type MariaDB struct {
 	StmtEvents *sql.Stmt
 	StmtCreateEvent *sql.Stmt
 	StmtRegisterEvent *sql.Stmt
+	StmtReregisterEvent *sql.Stmt
+	StmtDeregisterEvent *sql.Stmt
 	StmtEventRegistrations *sql.Stmt
+	StmtEventRegistration *sql.Stmt
+	StmtEventRegistration2 *sql.Stmt
 }
 
 var _ Repository = (*MariaDB)(nil)
@@ -125,8 +130,54 @@ func (m *MariaDB) Prepare(db *sql.DB) error {
 		m.StmtRegisterEvent = stmt
 	}
 
+	// @todo: not sure if this is the best way to do it
 	{
-		stmt, err := db.Prepare("select id, user_id, event_id, message from event_subscriptions where event_id = ?");
+		stmt, err := db.Prepare(
+			`update event_subscriptions
+			set
+				message = ?,
+				changed_at = (select @now := current_timestamp()),
+				deleted_at = null
+			where
+				id = ?;`)
+		if err != nil {
+			return err
+		}
+		m.StmtReregisterEvent = stmt
+	}
+
+	{
+		stmt, err := db.Prepare(
+			`update event_subscriptions
+			set
+				changed_at = (select @now := current_timestamp()),
+				deleted_at = @now
+			where
+				id = ?;`)
+		if err != nil {
+			return err
+		}
+		m.StmtDeregisterEvent = stmt
+	}
+
+	{
+		stmt, err := db.Prepare("select id, user_id, event_id, message from event_subscriptions where id = ? limit 1;")
+		if err != nil {
+			return err
+		}
+		m.StmtEventRegistration = stmt
+	}
+
+	{
+		stmt, err := db.Prepare("select id, user_id, event_id, message from event_subscriptions where user_id = ? and event_id = ? limit 1;")
+		if err != nil {
+			return err
+		}
+		m.StmtEventRegistration2 = stmt
+	}
+
+	{
+		stmt, err := db.Prepare("select id, user_id, event_id, message from event_subscriptions where event_id = ? and deleted_at is null;")
 		if err != nil {
 			return err
 		}
@@ -175,17 +226,62 @@ func (m *MariaDB) Event(id EventID) (e Event, err error) {
 	return e, err
 }
 
-func (m *MariaDB) RegisterEvent(reg EventRegistration) (EventRegistration, error) {
-	res, err := m.StmtRegisterEvent.Exec(reg.User, reg.Event, reg.Message)
+func (m *MariaDB) RegisterEvent(reg EventRegistration) (freg EventRegistration, ferr error) {
+	tx, err := m.db.Begin()
 	if err != nil {
 		return reg, err
 	}
-	id, err := res.LastInsertId()
+	defer func() {
+		if ferr != nil {
+			ferr = errors.Join(ferr, tx.Rollback())
+		}
+	}()
+
+	createNew := false
+	var oldMessage string
+	row := tx.Stmt(m.StmtEventRegistration2).QueryRow(reg.User, reg.Event)
+	err = row.Scan(&reg.ID, &reg.User, &reg.Event, &oldMessage)
 	if err != nil {
-		return reg, err
+		if errors.Is(err, sql.ErrNoRows) {
+			createNew = true
+		} else {
+			return reg, err
+		}
 	}
-	reg.ID = EventRegistrationID(id)
-	return reg, nil
+
+	if createNew {
+		res, err := tx.Stmt(m.StmtRegisterEvent).Exec(reg.User, reg.Event, reg.Message)
+		if err != nil {
+			return reg, err
+		}
+		id, err := res.LastInsertId()
+		if err != nil {
+			return reg, err
+		}
+		reg.ID = EventRegistrationID(id)
+	} else {
+		_, err := tx.Stmt(m.StmtReregisterEvent).Exec(reg.Message, reg.ID)
+		if err != nil {
+			return reg, err
+		}
+	}
+
+	err = tx.Commit()
+	return reg, err
+}
+
+func (m *MariaDB) DeregisterEvent(id EventRegistrationID) error {
+	_, err := m.StmtDeregisterEvent.Exec(id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *MariaDB) EventRegistration(id EventRegistrationID) (e EventRegistration, err error) {
+	row := m.StmtEventRegistration.QueryRow(id)
+	err = row.Scan(&e.ID, &e.User, &e.Event, &e.Message)
+	return e, err
 }
 
 func (m *MariaDB) EventRegistrations(eventID EventID) ([]EventRegistration, error) {

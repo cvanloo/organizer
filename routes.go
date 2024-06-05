@@ -217,14 +217,16 @@ func (s *Service) event(w http.ResponseWriter, r *http.Request) error {
 
 	// @todo: refactor this stuff out into dto package
 	parts := make([]Participant, len(eventRegs))
+	userSub := EventRegistrationID(-1)
+	var userParticipant Participant
 	for i := range eventRegs {
 		user, err := s.repo.User(eventRegs[i].User)
 		if err != nil {
 			// @robustness: not found here would be an internal server error though
 			return Maybe404(err)
 		}
+
 		part := Participant{}
-		part.userID = user.ID
 		part.DisplayName = user.Name
 		if user.Display.Valid {
 			part.DisplayName = user.Display.String
@@ -234,13 +236,21 @@ func (s *Service) event(w http.ResponseWriter, r *http.Request) error {
 			part.acceptMessage = eventRegs[i].Message.String
 		}
 		parts[i] = part
+
+		if user.ID == session.User {
+			userSub = eventRegs[i].ID
+			userParticipant = part
+		}
 	}
+
 	eventDTO := EventDetails{
 		ThisUser: session.User,
 		EventInfo: *((&EventInfo{}).From(event)), // @todo: No.
 		Participants: parts,
 		Discussion: []Comment{}, // @todo: impl
 		Csrf: csrf.Value,
+		SubID: userSub,
+		Participant: userParticipant,
 	}
 	return pages.Execute(w, "EventView", eventDTO)
 }
@@ -368,5 +378,63 @@ func (s *Service) eventRegister(w http.ResponseWriter, r *http.Request) error {
 	if reg.Message.Valid {
 		participantInfo.acceptMessage = reg.Message.String
 	}
-	return pages.Execute(w, "EventRegistration", participantInfo)
+	csrfToken, err := session.RequestCsrf()
+	if err != nil {
+		return err
+	}
+	deregInfo := UserDeregister{
+		Participant: participantInfo,
+		Csrf: csrfToken.Value,
+		SubID: reg.ID,
+	}
+	return pages.Execute(w, "UserDeregister", deregInfo)
+}
+
+func (s *Service) eventDeregister(w http.ResponseWriter, r *http.Request) error {
+	session, valid := r.Context().Value("SESSION").(*Session)
+	if !valid {
+		// Technically, should never reach this case.
+		return Unauthorized()
+	}
+	csrf := CsrfID(r.FormValue("csrf"))
+	if csrf == "" {
+		return BadRequest("missing field: csrf")
+	}
+	if !session.InvalidateCsrf(csrf) {
+		return Unauthorized()
+	}
+	subStr := r.FormValue("subscription_id")
+	if subStr == "" {
+		return BadRequest("missing field: subscription_id")
+	}
+	subNum, err := strconv.Atoi(subStr)
+	if err != nil {
+		return BadRequest("invalid value for field even: must be a number")
+	}
+	subID := EventRegistrationID(subNum)
+
+	sub, err := s.repo.EventRegistration(subID)
+	if err != nil {
+		return Maybe404(err)
+	}
+	if sub.User != session.User {
+		// don't leak that there is an id of a different user
+		// @todo: while we're at it: shouldn't we be using hash ids? (https://sqids.org/?hashids)
+		return NotFound(r) // @todo: maybe make it clearer in the error message that it's the id that was "not found", and not the url path
+	}
+
+	err = s.repo.DeregisterEvent(subID)
+	if err != nil {
+		return err
+	}
+
+	csrfToken, err := session.RequestCsrf()
+	if err != nil {
+		return err
+	}
+	regInfo := UserRegister{
+		Csrf: csrfToken.Value,
+		ID: sub.Event,
+	}
+	return pages.Execute(w, "UserRegister", regInfo)
 }

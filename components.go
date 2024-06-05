@@ -315,20 +315,16 @@ type EventDetails struct {
 	Participants []Participant
 	Discussion   []Comment
 	Csrf         string // @todo: CsrfID (the other place(s) as well!)
+	SubID        EventRegistrationID
+	Participant
 }
 
 func (e EventDetails) HasNotSignedUp() bool {
-	for _, reg := range e.Participants {
-		if reg.userID == e.ThisUser {
-			return false
-		}
-	}
-	return true
+	return e.SubID < 0
 }
 
 type Participant struct {
 	DisplayName, acceptMessage string
-	userID UserID
 }
 
 // @todo: create dto package?
@@ -338,6 +334,17 @@ func (p Participant) AcceptMessage() string {
 		return "Nimmt am Event teil."
 	}
 	return p.acceptMessage
+}
+
+type UserRegister struct {
+	Csrf string
+	ID EventID
+}
+
+type UserDeregister struct {
+	Participant
+	Csrf string
+	SubID EventRegistrationID
 }
 
 type Comment struct {
@@ -365,15 +372,28 @@ const HtmlEventView = `
 		<p>Anzahl Teilnehmer: {{ .NumberOfParticipants }}</p>
 	</div>
 {{ if .HasNotSignedUp }}
-	<div class="event-register">
-		<!--<form hx-post="/event/register" hx-target=".event-participants" hx-swap="beforeend" class="group-horiz">-->
-		<form hx-post="/event/register" hx-target="this" hx-swap="outerHTML" class="group-horiz">
+{{ block "UserRegister" . }}
+	<div id="event-register">
+		<form hx-post="/event/register" hx-target="#event-register" hx-swap="outerHTML" class="group-horiz">
 			<input type="hidden" name="csrf" id="csrf" value="{{.Csrf}}">
 			<input type="hidden" name="event" id="event" value="{{.ID}}">
 			<input type="text" name="message" id="message" value="Ich mache mit!" style="flex: 3;">
 			<input type="submit" value="Eintragen" style="flex: 2;">
 		</form>
 	</div>
+{{ end }}
+{{ else }}
+{{ block "UserDeregister" . }}
+	<div id="event-deregister" class="participant">
+		<p id="display-name">{{ .DisplayName }}</p>
+		<p id="accept-message">{{ .AcceptMessage }}</p>
+		<form hx-post="/event/deregister" hx-target="#event-deregister" hx-swap="outerHTML">
+			<input type="hidden" name="csrf" id="csrf" value="{{.Csrf}}">
+			<input type="hidden" name="subscription_id" id="subscription_id" value="{{.SubID}}">
+			<input type="submit" value="Teilnahme Absagen">
+		</form>
+	</div>
+{{ end }}
 {{ end }}
 {{ range .Participants }}
 	{{ Render "EventRegistration" . }}
@@ -406,8 +426,8 @@ const HtmlEventRegistration = `
 {{ define "EventRegistration" }}
 <div class="event-participants">
 	<div class="participant">
-		<p>{{ .DisplayName }}</p>
-		<p>{{ .AcceptMessage }}</p>
+		<p id="display-name">{{ .DisplayName }}</p>
+		<p id="accept-message">{{ .AcceptMessage }}</p>
 	</div>
 </div>
 {{ end }}

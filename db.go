@@ -17,7 +17,9 @@ type (
 		Event(id EventID) (Event, error)
 		CreateEvent(event Event) (Event, error)
 		RegisterEvent(reg EventRegistration) (EventRegistration, error)
+		DeregisterEvent(id EventRegistrationID) error
 		Events() ([]Event, error)
+		EventRegistration(id EventRegistrationID) (EventRegistration, error)
 		EventRegistrations(eventID EventID) ([]EventRegistration, error)
 	}
 	UserID int
