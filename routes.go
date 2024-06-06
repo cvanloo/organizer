@@ -358,7 +358,12 @@ func (s *Service) create(w http.ResponseWriter, r *http.Request) error {
 			return err
 		}
 
-		return redirect(fmt.Sprintf("/event?id=%d", event.ID))(w, r)
+		// @todo: make redirectHtmx function?
+		hdr := w.Header()
+		hdr.Set("HX-Redirect", fmt.Sprintf("/event?id=%d", event.ID))
+		w.WriteHeader(http.StatusCreated)
+		return nil
+		//return redirect(fmt.Sprintf("/event?id=%d", event.ID))(w, r)
 	}
 }
 
