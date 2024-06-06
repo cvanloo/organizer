@@ -60,7 +60,6 @@ func RenderMarkdown(data string) template.HTML {
 	return template.HTML(md)
 }
 
-// @todo: add loading anim while login is being processed
 const HtmlLanding = `
 {{ define "Landing" }}
 <!DOCTYPE html>
@@ -78,6 +77,7 @@ const HtmlLanding = `
 		<label for="email">Email:</label>
 		<input type="email" name="email" id="email" required>
 		<input type="submit" value="Anmelden">
+		<p class="htmx-indicator">Loading...</p>
 	</form>
 </body>
 </html>
