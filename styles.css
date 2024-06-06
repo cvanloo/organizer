@@ -109,3 +109,17 @@ input[type="checkbox"]:checked ~ .reveal-if-active {
 	grid-column-start: 3;
 	grid-column-end: 3;
 }
+
+nav {
+	display: flex;
+	flex-direction: row;
+	align-items: flex-start;
+	gap: 10px;
+}
+
+nav p {
+}
+
+nav p.push {
+	margin-left: auto;
+}

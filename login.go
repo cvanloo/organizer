@@ -177,6 +177,9 @@ func (s *Session) InvalidateLogin(login LoginID) bool {
 }
 
 func (s *Session) RequestCsrf() (CsrfToken, error) {
+	//if s.csrf.Valid && !s.crsf.HasExpired(s.auth.csrfTokenExpiryLimit) {
+	//	return s.csrf
+	//}
 	tokenStr, err := randomToken(s.auth.tokenLength)
 	if err != nil {
 		return CsrfToken{}, err
@@ -200,6 +203,10 @@ func (s *Session) InvalidateCsrf(csrf CsrfID) bool {
 	}
 	s.csrf.Valid = false
 	return true
+}
+
+func (s *Session) Delete() {
+	delete(s.auth.sessions, SessionID(s.Token.Value))
 }
 
 func randomToken(length int) (string, error) {

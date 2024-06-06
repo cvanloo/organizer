@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 type StringResponder string
@@ -162,6 +163,36 @@ func (s *Service) authenticate(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	return Unauthorized()
+}
+
+func (s *Service) logout(w http.ResponseWriter, r *http.Request) error {
+	if r.Method != http.MethodPost {
+		return MethodNotAllowed()
+	}
+
+	session, valid := r.Context().Value("SESSION").(*Session)
+	if !valid {
+		// Technically, should never reach this case.
+		return Unauthorized()
+	}
+
+	session.Delete()
+
+	removeCookie := &http.Cookie{
+		Name:    "session",
+		Value: "gone with the wind",
+		Expires: time.Time{},
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+		Secure:   true,
+	}
+	http.SetCookie(w, removeCookie)
+
+	hdr := w.Header()
+	hdr.Set("HX-Redirect", "/")
+
+	w.WriteHeader(http.StatusOK)
+	return nil
 }
 
 func (s *Service) events(w http.ResponseWriter, r *http.Request) error {

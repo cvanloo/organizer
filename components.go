@@ -23,6 +23,7 @@ func init() {
 	template.Must(pages.Parse(HtmlLanding))
 	template.Must(pages.Parse(HtmlLoginLinkSent))
 	template.Must(pages.Parse(HtmlConfirmLogin))
+	template.Must(pages.Parse(HtmlTitleBar))
 	template.Must(pages.Parse(HtmlEventListing))
 	template.Must(pages.Parse(HtmlCreate))
 	template.Must(pages.Parse(HtmlEventView))
@@ -121,6 +122,19 @@ const HtmlConfirmLogin = `
 {{ end }}
 `
 
+const HtmlTitleBar = `
+{{ define "TitleBar" }}
+<header>
+	<nav>
+		<p><a href="/">Home</a></p>
+		<p><a href="/create">Create</a></p>
+		<p class="push"><a href="/about">About</a></p>
+		<p><a hx-post="/logout">Logout</a></p>
+	</nav>
+</header>
+{{ end }}
+`
+
 type (
 	EventListing struct {
 		Events []EventInfo
@@ -194,6 +208,7 @@ const HtmlEventListing = `
 	<script src="/js/htmx.js"></script>
 </head>
 <body>
+	{{ Render "TitleBar" . }}
 	<h2>Events</h2>
 {{ range .Events }}
 	<div class="event-entry">
@@ -268,6 +283,7 @@ window.onload = () => {
 	</script>
 </head>
 <body>
+	{{ Render "TitleBar" . }}
 	<h2>Event erstellen</h2>
 	<form hx-post="/create" hx-target="body" hx-swap="innerHTML" id="form_event_create" class="list">
 		<label for="title">Titel:</label>
@@ -363,6 +379,7 @@ const HtmlEventView = `
 	<script src="/js/htmx.js"></script>
 </head>
 <body>
+	{{ Render "TitleBar" . }}
 	<div class="event-info">
 		<h2>{{ .Title }}</h2>
 		{{ RenderMarkdown .Description }}
