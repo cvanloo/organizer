@@ -209,6 +209,7 @@ const HtmlEventListing = `
 </head>
 <body>
 	{{ Render "TitleBar" . }}
+	<main>
 	<h2>Events</h2>
 {{ range .Events }}
 	<div class="event-entry">
@@ -220,6 +221,7 @@ const HtmlEventListing = `
 		<p style="text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">{{ .Description }}</p>
 	</div>
 {{ end }}
+	</main>
 </body>
 </html>
 {{ end }}
@@ -284,6 +286,7 @@ window.onload = () => {
 </head>
 <body>
 	{{ Render "TitleBar" . }}
+	<main>
 	<h2>Event erstellen</h2>
 	<form hx-post="/create" hx-target="body" hx-swap="innerHTML" id="form_event_create" class="list">
 		<label for="title">Titel:</label>
@@ -320,6 +323,7 @@ window.onload = () => {
 		</div>
 		<input type="submit" value="Erstellen">
 	</form>
+	</main>
 </body>
 </html>
 {{ end }}
@@ -380,6 +384,7 @@ const HtmlEventView = `
 </head>
 <body>
 	{{ Render "TitleBar" . }}
+	<main>
 	<div class="event-info">
 		<h2>{{ .Title }}</h2>
 		{{ RenderMarkdown .Description }}
@@ -434,6 +439,7 @@ const HtmlEventView = `
 			</form>
 		</div>
 	</div>
+	</main>
 </body>
 </html>
 {{ end }}

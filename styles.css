@@ -110,16 +110,44 @@ input[type="checkbox"]:checked ~ .reveal-if-active {
 	grid-column-end: 3;
 }
 
+header {
+	position: fixed;
+	margin: 0 auto;
+	width: 80ch;
+	background-color: lightblue;
+	box-shadow: 5px 5px 5px aliceblue;
+}
+
 nav {
 	display: flex;
 	flex-direction: row;
 	align-items: flex-start;
 	gap: 10px;
+	padding: 0 5px;
 }
 
 nav p {
 }
 
+nav p a {
+	color: black;
+	text-decoration: none;
+}
+
+nav p a:visited {
+	color: black;
+}
+
 nav p.push {
 	margin-left: auto;
+}
+
+main {
+	padding-top: 4rem;
+}
+
+.event-entry {
+	background-color: aliceblue;
+	margin: 1rem 0;
+	padding: 1rem;
 }
